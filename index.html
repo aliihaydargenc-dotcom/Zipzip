@@ -1701,7 +1701,7 @@
             G.score += points * G.scoreMultiplier;
         };
         
-        // Skor çarpanı güncelleme
+        // Skor çarpanı güncelleme - DÜZELTİLDİ
         function updateMultiplier() {
             if(G.combo >= 5) {
                 G.multiplierTimer = 5000;
@@ -1710,14 +1710,6 @@
                 const multiEl = document.getElementById('multiplierDisplay');
                 multiEl.textContent = `x${G.scoreMultiplier} ÇARPAN!`;
                 multiEl.style.display = 'block';
-            }
-            
-            if(G.multiplierTimer > 0) {
-                G.multiplierTimer -= dt * 1000;
-                if(G.multiplierTimer <= 0) {
-                    G.scoreMultiplier = 1;
-                    document.getElementById('multiplierDisplay').style.display = 'none';
-                }
             }
         };
         
@@ -1797,6 +1789,7 @@
             G.combo=0;
             G.rage=0;
             G.scoreMultiplier = 1;
+            G.multiplierTimer = 0;
             document.getElementById('multiplierDisplay').style.display = 'none';
             updateRageBar();
             updateHearts();
@@ -1874,7 +1867,7 @@
             P.h=P.w;
         };
         
-        // Ana oyun döngüsü
+        // Ana oyun döngüsü - DÜZELTİLDİ
         function loop(ts){
             if(!G.lastT) G.lastT=ts;
             G.dt=Math.min(ts-G.lastT,30);
@@ -1898,6 +1891,15 @@
                 bg.update();
                 render();
                 updateHUD();
+                
+                // Skor çarpanı zamanlayıcısı - DÜZELTİLDİ
+                if(G.multiplierTimer > 0) {
+                    G.multiplierTimer -= dt * 1000;
+                    if(G.multiplierTimer <= 0) {
+                        G.scoreMultiplier = 1;
+                        document.getElementById('multiplierDisplay').style.display = 'none';
+                    }
+                }
                 
                 // Rush modu zamanlayıcı
                 if(G.rushMode) {
@@ -2082,18 +2084,20 @@
             document.getElementById('skinPreview').textContent=SKINS[G.skin];
         };
         
-        // Günlük ödül kontrolü
+        // Günlük ödül kontrolü - DÜZELTİLDİ
         function checkDailyReward() {
             const today = new Date().toDateString();
             
-            if(G.lastLogin !== today) {
+            if(G.lastLogin !== today && G.state === 'menu') {
                 G.claimedToday = false;
                 showDailyReward();
+            } else {
+                G.claimedToday = true;
             }
         };
         
         function showDailyReward() {
-            if(G.state !== 'menu' || G.claimedToday) return;
+            if(G.claimedToday) return;
             
             const rewards = [
                 {icon: '❤️', text: '+1 CAN', type: 'life'},
@@ -2127,14 +2131,15 @@
             
             document.getElementById('gameContainer').appendChild(dailyDiv);
             
-            document.getElementById('claimReward').onclick = function() {
+            // Buton olay dinleyicilerini doğru şekilde ekle
+            document.getElementById('claimReward').addEventListener('click', function() {
                 claimDailyReward(reward);
-                dailyDiv.remove();
-            };
+            });
             
-            document.getElementById('closeDaily').onclick = function() {
+            document.getElementById('closeDaily').addEventListener('click', function() {
                 dailyDiv.remove();
-            };
+                G.claimedToday = true;
+            });
         };
         
         function claimDailyReward(reward) {
@@ -2148,23 +2153,49 @@
             localStorage.setItem('skyLoginStreak', G.loginStreak.toString());
             G.claimedToday = true;
             
+            // Ödülü uygula
             switch(reward.type) {
                 case 'life':
-                    if(G.lives < G.maxLives) G.lives++;
+                    G.maxLives = Math.min(6, G.maxLives + 1);
+                    G.lives = G.maxLives;
                     break;
                 case 'score':
-                    G.score += 500;
+                    G.best += 500;
+                    localStorage.setItem('skyB', G.best.toString());
+                    document.getElementById('bestScore').textContent = G.best;
                     break;
                 case 'rage':
-                    G.rage = CONFIG.RAGE_MAX;
-                    updateRageBar();
+                    // Sonraki oyun için başlangıç öfkesi
+                    G.startWithRage = true;
                     break;
                 case 'shield':
                     G.startWithShield = true;
                     break;
             }
             
-            addFloat(G.w/2, G.camY + 200, `GÜNLÜK ÖDÜL: ${reward.text}`, '#ffd700');
+            // Günlük ödül penceresini kaldır
+            const dailyDiv = document.getElementById('dailyReward');
+            if(dailyDiv) {
+                dailyDiv.remove();
+            }
+            
+            // Bildirim göster
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: rgba(0,0,0,0.8); color: #ffd700; padding: 20px 40px;
+                border-radius: 20px; font-family: 'Fredoka One'; font-size: 20px;
+                z-index: 2001; text-align: center; border: 3px solid #ffd700;
+            `;
+            notification.innerHTML = `
+                <div style="font-size: 36px; margin-bottom: 10px;">${reward.icon}</div>
+                <div>${reward.text} KAZANDIN!</div>
+            `;
+            document.getElementById('gameContainer').appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 2000);
         };
         
         // Mobil kontroller
@@ -2338,7 +2369,7 @@
             bg.init();
             
             // Günlük ödül kontrolü
-            setTimeout(checkDailyReward, 1000);
+            setTimeout(checkDailyReward, 500);
             
             requestAnimationFrame(loop);
         };
