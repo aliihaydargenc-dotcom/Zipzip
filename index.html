@@ -5,7 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Hafıza Ustası Pro 🏆</title>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #667eea;
@@ -27,14 +29,19 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        body {
-            font-family: 'Fredoka', sans-serif;
-            height: 100vh; /* min-height yerine height kullanıyoruz */
-            width: 100vw;  /* Genişliği sabitliyoruz */
-            overflow: hidden; /* İşte titremeyi çözen sihirli kod */
+      body {
+            /* Fredoka gitti, Nunito geldi */
+            font-family: 'Nunito', sans-serif;
+            
+            /* Diğer ayarların aynen kalsın */
+            height: 100dvh;
+            width: 100vw;
+            overflow: hidden;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             color: white;
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
         }
 
         /* --- Background Effects --- */
@@ -127,6 +134,7 @@
             text-align: center;
             background: linear-gradient(45deg, #ffd700, #ff6b6b, #4ecdc4);
             -webkit-background-clip: text;
+  background-clip: text; /* VS Code'un istediği standart kod bu */
             -webkit-text-fill-color: transparent;
             filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.3));
             animation: pulseTitle 3s infinite ease-in-out;
@@ -147,6 +155,7 @@
 
         .summary-item { display: flex; align-items: center; gap: 8px; font-size: 1.2rem; font-weight: 700; }
 
+       /* --- MENÜ IZGARA YAPISI (Grid) --- */
         .menu-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -155,43 +164,64 @@
             width: 100%;
         }
 
+        /* --- BUTON TASARIMI (RGB Gradient) --- */
         .menu-btn {
+            /* Canlı RGB Arka Plan */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #ff7eb3 100%);
+            
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 30px;
-            background: rgba(255,255,255,0.08);
+            padding: 20px;
             border-radius: 20px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            border: 1px solid transparent;
+            
+            /* Kenarlık ve Gölge */
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 10px 20px rgba(118, 75, 162, 0.4);
+            
+            /* Animasyonlar */
+            transition: transform 0.3s ease, box-shadow 0.3s ease, filter 0.3s;
         }
 
         .menu-btn:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: var(--primary);
-            transform: translateY(-5px);
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 30px rgba(118, 75, 162, 0.6);
+            filter: brightness(1.1); /* Parlama efekti */
+            border-color: #fff;
         }
 
-        .menu-btn-icon { font-size: 3rem; margin-bottom: 10px; }
-        .menu-btn-text { font-size: 1.2rem; font-weight: 600; }
+        /* --- İKON AYARLARI (Senin aradığın kısım burası) --- */
+        .menu-btn-icon { 
+            font-size: 3rem; 
+            margin-bottom: 10px;
+            /* İkona hafif gölge verelim ki renkli zeminde patlasın */
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        /* --- YAZI AYARLARI --- */
+        .menu-btn-text { 
+            font-size: 1.2rem; 
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
         
+        /* --- OYNA BUTONU (En büyük buton) --- */
         .play-btn-large {
-            grid-column: span 2;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+            grid-column: span 2; /* 2 sütunluk yer kapla */
+            /* Oyna butonu biraz daha farklı, daha dikkat çekici olsun */
+            background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+            background-size: 200% auto;
+            animation: gradientMove 3s ease infinite;
         }
-
-        /* --- Modals (Shop, Stats, etc) --- */
-        .modal-header {
-            width: 100%;
-            max-width: 800px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            margin-top: 20px;
+        
+        /* Oyna butonunun hareketli rengi için */
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         .modal-title { font-size: 2.5rem; color: var(--accent); }
@@ -276,22 +306,50 @@
         .stat-val { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
 
         /* Game HUD */
-       .game-hud .btn {
-            pointer-events: auto; /* Butonun tıklanabilirliğini geri açar */
-            position: relative;   /* Z-index sorunu olursa öne alır */
-            z-index: 101;
-        }
-        .hud-panel {
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(10px);
-            padding: 10px 20px;
-            border-radius: 30px;
+       .game-hud {
+            position: absolute; /* Fixed yerine absolute, body fixed olduğu için yeterli */
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            /* Çentikli telefonlar (iPhone X ve üstü) için yukarıdan boşluk bırakır */
+            padding-top: max(15px, env(safe-area-inset-top)); 
             display: flex;
-            gap: 20px;
+            justify-content: space-between; /* Biri sağa biri sola */
+            align-items: flex-start;
+            z-index: 100;
+            pointer-events: none; /* Aradaki boşluklara tıklanabilsin */
+        }
+       .hud-panel {
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: flex;
+            gap: 15px;
             pointer-events: auto;
             border: 1px solid rgba(255,255,255,0.1);
+            /* Mobilde çok yer kaplamasın diye maksimum genişlik sınırı */
+            max-width: 80%; 
+            overflow-x: auto; /* Çok dar ekranda taşarsa kaydırılabilsin */
         }
-
+        /* 3. SAĞDAKİ ÇIKIŞ BUTONU (Artık panelin içinde değil, karşısında) */
+        #btnQuit {
+            pointer-events: auto;
+            background: rgba(220, 53, 69, 0.9); /* Yarı saydam kırmızı */
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            border: none;
+            color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            margin-left: 10px; /* HUD ile arasına mesafe koyar */
+            flex-shrink: 0; /* Asla büzüşmesin */
+        }
         .hud-stat { text-align: center; }
         .hud-label { font-size: 0.7rem; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; }
         .hud-value { font-size: 1.4rem; font-weight: 700; color: white; }
@@ -469,13 +527,31 @@
             cursor: pointer;
         }
 
-        /* Dikey modda oynarken ekran çok darsa kartları biraz daha sıkıştır */
+        /* 4. MOBİL İÇİN YAZI KÜÇÜLTME (Sıkışıklığı giderir) */
         @media (max-width: 480px) {
-            .game-board { gap: 5px; } /* Kart aralarındaki boşluğu azalt */
-            .hud-panel { padding: 5px 10px; gap: 10px; } /* Skor tablosunu küçült */
-            .hud-label { font-size: 0.6rem; }
-            .hud-value { font-size: 1.1rem; }
-            .game-board-container { margin-top: 60px; margin-bottom: 80px; }
+            .hud-panel {
+                gap: 10px;
+                padding: 5px 10px;
+            }
+            .hud-label {
+                font-size: 0.5rem; /* Yazıları ufalttık */
+                margin-bottom: 2px;
+            }
+            .hud-value {
+                font-size: 1rem;
+            }
+            /* İkon ile sayıları alt alta değil yan yana yapalım mobilde yer kazanalım */
+            .hud-stat {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                min-width: 30px;
+            }
+            
+            /* Oyun alanını biraz daha aşağı itelim ki panele değmesin */
+            .game-board-container {
+                margin-top: 100px; 
+            }
         }
 
     </style>
@@ -524,6 +600,7 @@
     </div>
 
     <div id="screen-game" class="screen">
+        
         <div class="game-hud">
             <div class="hud-panel">
                 <div class="hud-stat">
@@ -538,12 +615,13 @@
                     <div class="hud-label">Süre</div>
                     <div class="hud-value" id="gameTimer">--:--</div>
                 </div>
-                <div class="hud-stat" style="margin-left:auto">
+                <div class="hud-stat">
                     <div class="hud-label">Altın</div>
                     <div class="hud-value gold" id="gameCoins">0</div>
                 </div>
             </div>
-            <button class="btn btn-icon btn-danger" onclick="Game.quit()">❌</button>
+
+            <button id="btnQuit" onclick="Game.quit()">❌</button>
         </div>
 
         <div class="game-board-container">
@@ -561,9 +639,8 @@
                 💡 <div class="badge-count" id="count-hint">0</div>
             </button>
         </div>
-    </div>
-
-    <div id="screen-shop" class="screen">
+        
+    </div> <div id="screen-shop" class="screen">
         <div class="modal-header">
             <button class="btn btn-icon" onclick="Nav.to('menu')">⬅️</button>
             <h2 class="modal-title">Mağaza</h2>
