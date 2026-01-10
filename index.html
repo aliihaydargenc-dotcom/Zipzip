@@ -3,399 +3,388 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hafıza Ustası 🧠</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hafıza Ustası Pro 🏆</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --accent: #ffd700;
+            --danger: #ff6b6b;
+            --success: #4ecdc4;
+            --dark: #2d3436;
+            --light: #f7f1e3;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Fredoka', sans-serif;
             min-height: 100vh;
             overflow-x: hidden;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
-            background-size: 400% 400%;
-            animation: meshGradient 15s ease infinite;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             color: white;
             position: relative;
         }
 
-        @keyframes meshGradient {
-
-            0%,
-            100% {
-                background-position: 0% 50%;
-            }
-
-            25% {
-                background-position: 100% 50%;
-            }
-
-            50% {
-                background-position: 50% 100%;
-            }
-
-            75% {
-                background-position: 50% 0%;
-            }
-        }
-
-        /* Floating shapes background */
-        .shapes-container {
-            position: fixed;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        .shape {
-            position: absolute;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
-            animation: float 20s infinite ease-in-out;
-        }
-
-        .shape:nth-child(1) {
-            width: 150px;
-            height: 150px;
-            left: 10%;
-            top: 20%;
-            animation-delay: 0s;
-        }
-
-        .shape:nth-child(2) {
-            width: 100px;
-            height: 100px;
-            right: 15%;
-            top: 40%;
-            animation-delay: 3s;
-        }
-
-        .shape:nth-child(3) {
-            width: 120px;
-            height: 120px;
-            left: 50%;
-            bottom: 20%;
-            animation-delay: 6s;
-        }
-
-        .shape:nth-child(4) {
-            width: 80px;
-            height: 80px;
-            right: 30%;
-            bottom: 30%;
-            animation-delay: 9s;
-        }
-
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0) rotate(0deg);
-            }
-
-            50% {
-                transform: translateY(-50px) rotate(180deg);
-            }
-        }
-
-        /* Start Screen */
-        .start-screen {
+        /* --- Background Effects --- */
+        .bg-mesh {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, rgba(26, 26, 46, 0.95), rgba(83, 52, 131, 0.95));
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+            z-index: -1;
+        }
+
+        .floating-emoji {
+            position: absolute;
+            font-size: 2rem;
+            opacity: 0.1;
+            animation: floatUp 15s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
+            100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+        }
+
+        /* --- UI Components --- */
+        .btn {
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            border: none;
+            padding: 12px 25px;
+            border-radius: 15px;
+            color: white;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4); }
+        .btn:active { transform: translateY(-1px); }
+        .btn-success { background: linear-gradient(to right, #11998e, #38ef7d); }
+        .btn-danger { background: linear-gradient(to right, #cb2d3e, #ef473a); }
+        .btn-warning { background: linear-gradient(to right, #f2994a, #f2c94c); color: #333; }
+        .btn-icon { padding: 12px; border-radius: 50%; }
+
+        /* --- Screens --- */
+        .screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+            overflow-y: auto; 
+            z-index: 10;
+        }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+            z-index: 20;
+        }
+
+        /* --- Main Menu --- */
+        .main-menu { justify-content: center; }
+        
+        .game-logo {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            text-align: center;
+            background: linear-gradient(45deg, #ffd700, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.3));
+            animation: pulseTitle 3s infinite ease-in-out;
+        }
+
+        @keyframes pulseTitle { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+        .player-summary {
+            background: rgba(255,255,255,0.05);
+            padding: 15px 30px;
+            border-radius: 50px;
+            margin-bottom: 40px;
+            display: flex;
+            gap: 20px;
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .summary-item { display: flex; align-items: center; gap: 8px; font-size: 1.2rem; font-weight: 700; }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .menu-btn {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 2000;
-            transition: opacity 0.5s ease;
-        }
-
-        .start-screen.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .game-title {
-            font-size: 4rem;
-            font-weight: 900;
-            background: linear-gradient(45deg, #ffd700, #ff6b6b, #4ecdc4, #ff6b6b, #ffd700);
-            background-size: 200% auto;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: shimmer 3s linear infinite;
-            margin-bottom: 30px;
-            text-align: center;
-            text-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
-        }
-
-        @keyframes shimmer {
-            to {
-                background-position: 200% center;
-            }
-        }
-
-        .start-subtitle {
-            font-size: 1.5rem;
-            margin-bottom: 50px;
-            opacity: 0.9;
-            text-align: center;
-            padding: 0 20px;
-        }
-
-        .btn-play {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 25px 60px;
-            font-size: 2rem;
-            font-weight: 700;
-            border-radius: 60px;
+            padding: 30px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
             cursor: pointer;
-            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
             transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            animation: pulse 2s infinite;
+            border: 1px solid transparent;
         }
 
-        @keyframes pulse {
-
-            0%,
-            100% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.05);
-            }
+        .menu-btn:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: var(--primary);
+            transform: translateY(-5px);
         }
 
-        .btn-play:hover {
-            transform: translateY(-5px) scale(1.08);
-            box-shadow: 0 20px 50px rgba(102, 126, 234, 0.8);
+        .menu-btn-icon { font-size: 3rem; margin-bottom: 10px; }
+        .menu-btn-text { font-size: 1.2rem; font-weight: 600; }
+        
+        .play-btn-large {
+            grid-column: span 2;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
         }
 
-        /* Game Container */
-        .game-container {
-            position: relative;
-            z-index: 1;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* HUD */
-        .hud {
+        /* --- Modals (Shop, Stats, etc) --- */
+        .modal-header {
+            width: 100%;
+            max-width: 800px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px;
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
+            margin-top: 20px;
         }
 
-        .hud-item {
+        .modal-title { font-size: 2.5rem; color: var(--accent); }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+            padding-bottom: 50px;
+        }
+
+        /* Shop Items */
+        .shop-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 100px;
-        }
-
-        .hud-label {
-            font-size: 0.9rem;
-            opacity: 0.8;
-            margin-bottom: 5px;
-        }
-
-        .hud-value {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #ffd700;
-        }
-
-        .timer {
-            color: #ff6b6b;
-            font-size: 2rem;
-        }
-
-        .timer.warning {
-            animation: timerPulse 1s infinite;
-        }
-
-        @keyframes timerPulse {
-
-            0%,
-            100% {
-                color: #ff6b6b;
-                transform: scale(1);
-            }
-
-            50% {
-                color: #ff3838;
-                transform: scale(1.1);
-            }
-        }
-
-        .joker-btn {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            border: none;
-            padding: 15px 30px;
-            border-radius: 50px;
-            color: white;
-            font-weight: 700;
-            font-size: 1.1rem;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(240, 147, 251, 0.5);
-            transition: all 0.3s ease;
-        }
-
-        .joker-btn:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(240, 147, 251, 0.7);
-        }
-
-        .joker-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        /* Theme Badge */
-        .theme-badge {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-            padding: 12px 30px;
-            border-radius: 30px;
-            font-size: 1.3rem;
-            font-weight: 600;
-            box-shadow: 0 5px 15px rgba(250, 112, 154, 0.4);
             text-align: center;
-            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
         }
 
-        /* Game Board */
-        .game-board-wrapper {
-            flex: 1;
+        .shop-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 5px;
+            background: var(--accent);
+        }
+
+        .shop-icon { font-size: 3.5rem; margin: 15px 0; }
+        .shop-name { font-size: 1.4rem; font-weight: 700; margin-bottom: 5px; }
+        .shop-desc { font-size: 0.9rem; opacity: 0.7; margin-bottom: 15px; min-height: 40px; }
+        .shop-price { 
+            background: rgba(0,0,0,0.3); 
+            padding: 5px 15px; 
+            border-radius: 20px; 
+            color: var(--accent); 
+            font-weight: 700; 
+            margin-bottom: 15px;
+        }
+
+        /* Achievements */
+        .achievement-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            opacity: 0.5;
+            filter: grayscale(1);
+            transition: all 0.3s;
+        }
+
+        .achievement-card.unlocked {
+            opacity: 1;
+            filter: grayscale(0);
+            background: linear-gradient(to right, rgba(78, 205, 196, 0.1), transparent);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+        }
+
+        .ach-icon { font-size: 2.5rem; min-width: 60px; text-align: center; }
+        .ach-info { text-align: left; }
+        .ach-title { font-weight: 700; color: var(--success); }
+        .ach-desc { font-size: 0.85rem; opacity: 0.8; }
+
+        /* Stats */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            width: 100%;
+        }
+
+        .stat-label { font-size: 1.1rem; opacity: 0.8; }
+        .stat-val { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+
+        /* Game HUD */
+        .game-hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .hud-panel {
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            gap: 20px;
+            pointer-events: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .hud-stat { text-align: center; }
+        .hud-label { font-size: 0.7rem; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; }
+        .hud-value { font-size: 1.4rem; font-weight: 700; color: white; }
+        .hud-value.gold { color: var(--accent); }
+
+        .powerups-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+            background: rgba(0,0,0,0.4);
+            padding: 10px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .powerup-btn {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            background: linear-gradient(135deg, #2d3436, #000);
+            border: 2px solid #444;
+            color: white;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px 0;
         }
 
+        .powerup-btn:not(:disabled):hover { transform: translateY(-5px); border-color: var(--accent); }
+        .powerup-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+        
+        .badge-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--danger);
+            color: white;
+            font-size: 0.8rem;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #1a1a2e;
+            font-weight: 700;
+        }
+
+        /* Game Board adjustments */
+        .game-board-container {
+            margin-top: 80px;
+            margin-bottom: 100px;
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+        
+        /* ... Eski CSS'in game-board ve card kısımları buraya entegre edilecek ... */
         .game-board {
             display: grid;
-            gap: 12px;
+            gap: 10px;
             perspective: 1000px;
-            max-width: 100%;
         }
-
-        .game-board.combo-fire {
-            animation: comboGlow 1s ease;
-            box-shadow: 0 0 50px rgba(255, 215, 0, 0.8);
-            border-radius: 20px;
-            padding: 10px;
-        }
-
-        @keyframes comboGlow {
-
-            0%,
-            100% {
-                box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
-            }
-
-            50% {
-                box-shadow: 0 0 60px rgba(255, 215, 0, 1);
-            }
-        }
-
-        /* Card Styling */
         .card {
             position: relative;
             cursor: pointer;
             transform-style: preserve-3d;
-            transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+            width: 80px; /* Default */
+            height: 80px;
         }
-
-        .card.flipped {
-            transform: rotateY(180deg);
-        }
-
-        .card.matched {
-            animation: matchBounce 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            pointer-events: none;
-        }
-
-        @keyframes matchBounce {
-            0% {
-                transform: rotateY(180deg) scale(1);
-            }
-
-            25% {
-                transform: rotateY(180deg) scale(1.3);
-            }
-
-            50% {
-                transform: rotateY(180deg) scale(0.9);
-            }
-
-            75% {
-                transform: rotateY(180deg) scale(1.1);
-            }
-
-            100% {
-                transform: rotateY(180deg) scale(1);
-            }
-        }
-
-        .card.unmatched {
-            animation: shake 0.5s ease;
-        }
-
-        @keyframes shake {
-
-            0%,
-            100% {
-                transform: translateX(0);
-            }
-
-            25% {
-                transform: translateX(-15px) rotate(-5deg);
-            }
-
-            75% {
-                transform: translateX(15px) rotate(5deg);
-            }
-        }
-
-        .card.preview {
-            animation: flipPreview 0.6s ease;
-        }
-
-        @keyframes flipPreview {
-            0% {
-                transform: rotateY(0deg);
-            }
-
-            100% {
-                transform: rotateY(180deg);
-            }
+        .card.flipped { transform: rotateY(180deg); }
+        .card.matched { animation: matchPop 0.5s forwards; }
+        .card.unmatched { animation: shake 0.5s; }
+        
+        @keyframes matchPop {
+            0% { transform: rotateY(180deg) scale(1); }
+            50% { transform: rotateY(180deg) scale(1.2); box-shadow: 0 0 30px var(--accent); }
+            100% { transform: rotateY(180deg) scale(0); opacity: 0; visibility: hidden; }
         }
 
         .card-face {
@@ -403,799 +392,816 @@
             width: 100%;
             height: 100%;
             backface-visibility: hidden;
-            border-radius: 15px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            font-size: 2.5rem;
         }
-
-        .card:hover .card-face {
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
-        }
-
         .card-front {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #ff9a56 100%);
-            background-size: 200% 200%;
-            animation: cardGradient 4s ease infinite;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: 2px solid rgba(255,255,255,0.1);
         }
-
-        @keyframes cardGradient {
-
-            0%,
-            100% {
-                background-position: 0% 50%;
-            }
-
-            50% {
-                background-position: 100% 50%;
-            }
-        }
-
-        .card-front::before {
-            content: '?';
-            font-size: 2.5rem;
-            font-weight: 900;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
+        .card-front::after { content: '❓'; font-size: 2rem; opacity: 0.7; }
         .card-back {
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-            transform: rotateY(180deg);
-            font-size: 2.5rem;
+            background: white;
             color: #333;
+            transform: rotateY(180deg);
+            border: 2px solid var(--accent);
         }
 
-        /* Modals */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+        /* Settings Toggle */
+        .setting-row {
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            z-index: 3000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            margin-bottom: 15px;
+            width: 100%;
         }
-
-        .modal.show {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .modal-content {
-            background: linear-gradient(135deg, rgba(26, 26, 46, 0.98), rgba(83, 52, 131, 0.98));
-            padding: 50px;
+        .toggle-switch {
+            width: 60px;
+            height: 30px;
+            background: #444;
             border-radius: 30px;
-            text-align: center;
-            max-width: 500px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            transform: scale(0.8);
-            transition: transform 0.3s ease;
-        }
-
-        .modal.show .modal-content {
-            transform: scale(1);
-        }
-
-        .modal-title {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            background: linear-gradient(45deg, #ffd700, #ff6b6b, #4ecdc4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .modal-subtitle {
-            font-size: 1.5rem;
-            margin-bottom: 30px;
-            opacity: 0.9;
-        }
-
-        .stars {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin: 20px 0;
-            font-size: 3rem;
-        }
-
-        .star {
-            animation: starPop 0.5s ease backwards;
-        }
-
-        .star:nth-child(1) {
-            animation-delay: 0.1s;
-        }
-
-        .star:nth-child(2) {
-            animation-delay: 0.3s;
-        }
-
-        .star:nth-child(3) {
-            animation-delay: 0.5s;
-        }
-
-        @keyframes starPop {
-            0% {
-                transform: scale(0) rotate(-180deg);
-                opacity: 0;
-            }
-
-            100% {
-                transform: scale(1) rotate(0deg);
-                opacity: 1;
-            }
-        }
-
-        .btn-modal {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 18px 40px;
-            font-size: 1.3rem;
-            font-weight: 700;
-            border-radius: 50px;
+            position: relative;
             cursor: pointer;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
-            transition: all 0.3s ease;
-            margin: 5px;
+            transition: 0.3s;
         }
-
-        .btn-modal:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.7);
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px;
+            width: 26px; height: 26px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
         }
+        .toggle-switch.active { background: var(--success); }
+        .toggle-switch.active::after { left: 32px; }
 
-        /* Confetti */
-        .confetti {
+        /* Notification Toast */
+        .toast {
             position: fixed;
-            width: 10px;
-            height: 10px;
-            background: #ffd700;
-            position: fixed;
-            top: -10px;
-            z-index: 5000;
-            animation: confettiFall 3s ease-out forwards;
-            pointer-events: none;
+            top: 20px;
+            right: 20px;
+            background: white;
+            color: #333;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transform: translateX(150%);
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+        .toast.show { transform: translateX(0); }
+        .toast-icon { font-size: 1.5rem; }
+        
+        /* Mobil Dokunmatik İyileştirmeleri */
+        button, .card, .menu-btn, .powerup-btn, .toggle-switch {
+            touch-action: manipulation; /* Çift tıklama zoomunu iptal eder, tepkiyi hızlandırır */
+            cursor: pointer;
         }
 
-        @keyframes confettiFall {
-            to {
-                transform: translateY(100vh) rotate(720deg);
-                opacity: 0;
-            }
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .game-title {
-                font-size: 2.5rem;
-            }
-
-            .start-subtitle {
-                font-size: 1.2rem;
-            }
-
-            .btn-play {
-                padding: 20px 40px;
-                font-size: 1.5rem;
-            }
-
-            .hud {
-                padding: 15px;
-            }
-
-            .hud-value {
-                font-size: 1.5rem;
-            }
-
-            .theme-badge {
-                font-size: 1.1rem;
-            }
-
-            .game-board {
-                gap: 8px;
-            }
-
-            .card-back {
-                font-size: 2rem;
-            }
-
-            .modal-content {
-                padding: 30px;
-                max-width: 90%;
-            }
-
-            .modal-title {
-                font-size: 2rem;
-            }
-        }
-
+        /* Dikey modda oynarken ekran çok darsa kartları biraz daha sıkıştır */
         @media (max-width: 480px) {
-            .game-title {
-                font-size: 2rem;
-            }
-
-            .btn-play {
-                padding: 15px 30px;
-                font-size: 1.2rem;
-            }
-
-            .hud-value {
-                font-size: 1.2rem;
-            }
-
-            .card-front::before {
-                font-size: 1.5rem;
-            }
-
-            .card-back {
-                font-size: 1.5rem;
-            }
+            .game-board { gap: 5px; } /* Kart aralarındaki boşluğu azalt */
+            .hud-panel { padding: 5px 10px; gap: 10px; } /* Skor tablosunu küçült */
+            .hud-label { font-size: 0.6rem; }
+            .hud-value { font-size: 1.1rem; }
+            .game-board-container { margin-top: 60px; margin-bottom: 80px; }
         }
+
     </style>
 </head>
 
 <body>
-    <!-- Background Shapes -->
-    <div class="shapes-container">
-        <div class="shape"></div>
-        <div class="shape"></div>
-        <div class="shape"></div>
-        <div class="shape"></div>
+
+    <div class="bg-mesh"></div>
+    <div id="floatingContainer"></div>
+
+    <div id="toast" class="toast">
+        <span class="toast-icon">🏆</span>
+        <span id="toastMsg">Bildirim</span>
     </div>
 
-    <!-- Start Screen -->
-    <div class="start-screen" id="startScreen">
-        <h1 class="game-title">🧠 Hafıza Ustası 🧠</h1>
-        <p class="start-subtitle">20 Seviye, 4 Tema, Sonsuz Eğlence!</p>
-        <button class="btn-play" onclick="startGame()">OYNA</button>
-    </div>
-
-    <!-- Game Container -->
-    <div class="game-container">
-        <!-- HUD -->
-        <div class="hud">
-            <div class="hud-item">
-                <div class="hud-label">Seviye</div>
-                <div class="hud-value" id="levelDisplay">1</div>
-            </div>
-            <div class="hud-item">
-                <div class="hud-label">Hamle</div>
-                <div class="hud-value" id="movesDisplay">0</div>
-            </div>
-            <div class="hud-item" id="timerContainer" style="display: none;">
-                <div class="hud-label">Süre</div>
-                <div class="hud-value timer" id="timerDisplay">0</div>
-            </div>
-            <div class="hud-item">
-                <button class="joker-btn" id="jokerBtn" onclick="useJoker()">
-                    👁️ Göz At (<span id="jokerCount">1</span>)
-                </button>
-            </div>
+    <div id="screen-menu" class="screen active main-menu">
+        <h1 class="game-logo">🧠 Hafıza Ustası</h1>
+        
+        <div class="player-summary">
+            <div class="summary-item"><span style="color:var(--accent)">💰</span> <span id="menuCoin">0</span></div>
+            <div class="summary-item"><span>⭐</span> <span id="menuLevel">Lv. 1</span></div>
         </div>
 
-        <!-- Theme Badge -->
-        <div class="theme-badge" id="themeBadge">Hayvanlar 🐯</div>
-
-        <!-- Game Board -->
-        <div class="game-board-wrapper">
-            <div class="game-board" id="gameBoard"></div>
+        <div class="menu-grid">
+            <div class="menu-btn play-btn-large" onclick="Game.start()">
+                <div class="menu-btn-icon">🚀</div>
+                <div class="menu-btn-text">OYNA</div>
+            </div>
+            <div class="menu-btn" onclick="Nav.to('shop')">
+                <div class="menu-btn-icon">🛒</div>
+                <div class="menu-btn-text">Mağaza</div>
+            </div>
+            <div class="menu-btn" onclick="Nav.to('stats')">
+                <div class="menu-btn-icon">📊</div>
+                <div class="menu-btn-text">İstatistik</div>
+            </div>
+            <div class="menu-btn" onclick="Nav.to('achievements')">
+                <div class="menu-btn-icon">🏆</div>
+                <div class="menu-btn-text">Başarım</div>
+            </div>
+            <div class="menu-btn" onclick="Nav.to('settings')">
+                <div class="menu-btn-icon">⚙️</div>
+                <div class="menu-btn-text">Ayarlar</div>
+            </div>
         </div>
     </div>
 
-    <!-- Win Modal -->
-    <div class="modal" id="winModal">
-        <div class="modal-content">
-            <h2 class="modal-title">🎉 Tebrikler! 🎉</h2>
-            <div class="stars" id="starsDisplay"></div>
-            <p class="modal-subtitle" id="winMessage"></p>
-            <button class="btn-modal" onclick="nextLevel()">Sonraki Seviye ➡️</button>
-            <button class="btn-modal" onclick="restartLevel()">Tekrar Dene 🔄</button>
+    <div id="screen-game" class="screen">
+        <div class="game-hud">
+            <div class="hud-panel">
+                <div class="hud-stat">
+                    <div class="hud-label">Seviye</div>
+                    <div class="hud-value" id="gameLevel">1</div>
+                </div>
+                <div class="hud-stat">
+                    <div class="hud-label">Hamle</div>
+                    <div class="hud-value" id="gameMoves">0</div>
+                </div>
+                <div class="hud-stat">
+                    <div class="hud-label">Süre</div>
+                    <div class="hud-value" id="gameTimer">--:--</div>
+                </div>
+                <div class="hud-stat" style="margin-left:auto">
+                    <div class="hud-label">Altın</div>
+                    <div class="hud-value gold" id="gameCoins">0</div>
+                </div>
+            </div>
+            <button class="btn btn-icon btn-danger" onclick="Game.quit()">❌</button>
+        </div>
+
+        <div class="game-board-container">
+            <div id="gameBoard" class="game-board"></div>
+        </div>
+
+        <div class="powerups-container">
+            <button class="powerup-btn" id="btnJoker" onclick="PowerUps.use('joker')" title="Tüm kartları göster">
+                👁️ <div class="badge-count" id="count-joker">0</div>
+            </button>
+            <button class="powerup-btn" id="btnFreeze" onclick="PowerUps.use('freeze')" title="Zamanı dondur">
+                ❄️ <div class="badge-count" id="count-freeze">0</div>
+            </button>
+            <button class="powerup-btn" id="btnHint" onclick="PowerUps.use('hint')" title="Bir eşleşme göster">
+                💡 <div class="badge-count" id="count-hint">0</div>
+            </button>
         </div>
     </div>
 
-    <!-- Game Over Modal -->
-    <div class="modal" id="gameOverModal">
-        <div class="modal-content">
-            <h2 class="modal-title">⏰ Süre Doldu! ⏰</h2>
-            <p class="modal-subtitle">Tekrar deneyin ve rekor kırın!</p>
-            <button class="btn-modal" onclick="restartLevel()">Tekrar Dene 🔄</button>
+    <div id="screen-shop" class="screen">
+        <div class="modal-header">
+            <button class="btn btn-icon" onclick="Nav.to('menu')">⬅️</button>
+            <h2 class="modal-title">Mağaza</h2>
+            <div class="summary-item"><span style="color:var(--accent)">💰</span> <span id="shopCoins">0</span></div>
+        </div>
+        <div class="content-grid" id="shopGrid">
+            </div>
+    </div>
+
+    <div id="screen-achievements" class="screen">
+        <div class="modal-header">
+            <button class="btn btn-icon" onclick="Nav.to('menu')">⬅️</button>
+            <h2 class="modal-title">Başarımlar</h2>
+        </div>
+        <div class="content-grid" id="achievementsGrid"></div>
+    </div>
+
+    <div id="screen-stats" class="screen">
+        <div class="modal-header">
+            <button class="btn btn-icon" onclick="Nav.to('menu')">⬅️</button>
+            <h2 class="modal-title">İstatistikler</h2>
+        </div>
+        <div style="width:100%; max-width:600px; background:rgba(0,0,0,0.3); border-radius:20px; padding:20px;">
+            <div class="stat-row">
+                <span class="stat-label">Toplam Oynanan Oyun</span>
+                <span class="stat-val" id="statTotalGames">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Kazanılan Zaferler</span>
+                <span class="stat-val" id="statWins">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Toplam Eşleşme</span>
+                <span class="stat-val" id="statTotalMatches">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">En Yüksek Seviye</span>
+                <span class="stat-val" id="statMaxLevel">1</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-settings" class="screen">
+        <div class="modal-header">
+            <button class="btn btn-icon" onclick="Nav.to('menu')">⬅️</button>
+            <h2 class="modal-title">Ayarlar</h2>
+        </div>
+        <div style="width:100%; max-width:500px;">
+            <div class="setting-row">
+                <span>🎵 Müzik</span>
+                <div class="toggle-switch active" id="toggleMusic" onclick="Settings.toggle('music')"></div>
+            </div>
+            <div class="setting-row">
+                <span>🔊 Ses Efektleri</span>
+                <div class="toggle-switch active" id="toggleSfx" onclick="Settings.toggle('sfx')"></div>
+            </div>
+            <div class="setting-row">
+                <span>🗑️ Verileri Sıfırla</span>
+                <button class="btn btn-danger" onclick="DataManager.reset()">SIFIRLA</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay-result" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:none; justify-content:center; align-items:center; z-index:999; flex-direction:column; text-align:center;">
+        <h1 id="resultTitle" style="font-size:4rem; margin-bottom:20px;"></h1>
+        <div id="resultStars" style="font-size:3rem; margin-bottom:20px;"></div>
+        <p id="resultMsg" style="font-size:1.5rem; margin-bottom:30px; opacity:0.8;"></p>
+        <div style="display:flex; gap:15px;">
+            <button class="btn" onclick="Game.restartLevel()">🔄 Tekrar</button>
+            <button class="btn btn-success" id="btnNextLevel" onclick="Game.nextLevel()">➡️ Sonraki</button>
+            <button class="btn btn-danger" onclick="Game.quit()">🏠 Menü</button>
         </div>
     </div>
 
     <script>
-        // ============================================
-        // GAME STATE & CONFIGURATION
-        // ============================================
-
-        const emojiThemes = {
-            animals: {
-                name: 'Hayvanlar 🐯',
-                emojis: ['🦁', '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦒', '🦓', '🦌', '🐮', '🐷', '🐸', '🐵', '🦆', '🦉', '🦅', '🦋', '🐝', '🐛', '🦗', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑']
+        // ==========================================
+        // 1. DATA MANAGER & STATE
+        // ==========================================
+        const DefaultData = {
+            coins: 100, // Başlangıç parası
+            currentLevel: 1,
+            maxLevelReached: 1,
+            inventory: {
+                joker: 1,
+                freeze: 0,
+                hint: 0
             },
-            food: {
-                name: 'Yiyecekler 🍕',
-                emojis: ['🍎', '🍌', '🍇', '🍓', '🍒', '🍑', '🍍', '🥝', '🍔', '🍕', '🌭', '🌮', '🍿', '🍩', '🍪', '🎂', '🍰', '🧁', '🍦', '🍧', '🍨', '🍭', '🍬', '🍫', '🥤', '🧃', '🍺', '🍷', '🥗', '🍝', '🍜', '🍱']
+            stats: {
+                totalGames: 0,
+                wins: 0,
+                totalMatches: 0
             },
-            sports: {
-                name: 'Spor & Aktivite 🏀',
-                emojis: ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸', '🏒', '🏑', '🥊', '🥋', '🎯', '🎮', '🎲', '🎸', '🎹', '🎺', '🎻', '🥁', '🎨', '🖌️', '🎭', '🎪', '🎬', '🎤', '🎧', '🎼', '📷', '📸']
-            },
-            travel: {
-                name: 'Seyahat & Nesneler 🚀',
-                emojis: ['🚀', '🛸', '🚁', '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚈', '🚉', '🚊', '🚝', '🚞', '🚟', '🚠', '🚡', '🚢', '⛵', '🛥️', '🏰', '🗽', '🗿', '⛩️', '🕌', '⛪', '💎', '💍', '🔔', '🎁', '🎈', '🎀']
+            achievements: [], // 'id' listesi
+            settings: {
+                music: true,
+                sfx: true
             }
         };
 
-        const gridConfigs = [
-            { rows: 4, cols: 4, pairs: 8, time: 0 },      // Levels 1-4 (No timer)
-            { rows: 4, cols: 6, pairs: 12, time: 240 },   // Levels 5-9
-            { rows: 6, cols: 6, pairs: 18, time: 300 },   // Levels 10-14
-            { rows: 6, cols: 8, pairs: 24, time: 360 },   // Levels 15-19
-            { rows: 8, cols: 8, pairs: 32, time: 420 }    // Level 20
+        const DataManager = {
+            data: null,
+            init() {
+                const saved = localStorage.getItem('hafizaProV2');
+                if (saved) {
+                    this.data = JSON.parse(saved);
+                    // Versiyon farkı varsa merge et (basitçe)
+                    if(!this.data.inventory) this.data.inventory = DefaultData.inventory;
+                } else {
+                    this.data = JSON.parse(JSON.stringify(DefaultData));
+                }
+                this.save();
+                this.updateUI();
+            },
+            save() {
+                localStorage.setItem('hafizaProV2', JSON.stringify(this.data));
+                this.updateUI();
+            },
+            reset() {
+                if(confirm('Tüm ilerlemeniz silinecek. Emin misiniz?')) {
+                    localStorage.removeItem('hafizaProV2');
+                    location.reload();
+                }
+            },
+            addCoins(amount) {
+                this.data.coins += amount;
+                this.save();
+                Toast.show(`+${amount} Altın Kazandın!`, '💰');
+            },
+            spendCoins(amount) {
+                if (this.data.coins >= amount) {
+                    this.data.coins -= amount;
+                    this.save();
+                    return true;
+                }
+                Toast.show('Yetersiz Altın!', '❌');
+                return false;
+            },
+            updateUI() {
+                // Menü değerleri
+                document.getElementById('menuCoin').innerText = this.data.coins;
+                document.getElementById('menuLevel').innerText = `Lv. ${this.data.currentLevel}`;
+                // Oyun içi değerler
+                document.getElementById('gameCoins').innerText = this.data.coins;
+                document.getElementById('shopCoins').innerText = this.data.coins;
+                // Envanter
+                document.getElementById('count-joker').innerText = this.data.inventory.joker;
+                document.getElementById('count-freeze').innerText = this.data.inventory.freeze;
+                document.getElementById('count-hint').innerText = this.data.inventory.hint;
+                // Buton durumları
+                document.getElementById('btnJoker').disabled = this.data.inventory.joker <= 0;
+                document.getElementById('btnFreeze').disabled = this.data.inventory.freeze <= 0;
+                document.getElementById('btnHint').disabled = this.data.inventory.hint <= 0;
+                
+                Stats.render();
+            }
+        };
+
+        // ==========================================
+        // 2. CONFIGURATION & CONTENT
+        // ==========================================
+        const ShopItems = [
+            { id: 'joker', name: 'Gözcü', icon: '👁️', desc: 'Tüm kartları 1 saniyeliğine gösterir.', price: 50 },
+            { id: 'freeze', name: 'Zamanı Dondur', icon: '❄️', desc: 'Süreyi 10 saniyeliğine durdurur.', price: 100 },
+            { id: 'hint', name: 'İpucu', icon: '💡', desc: 'Bir eşleşmeyi otomatik olarak bulur.', price: 150 }
         ];
 
-        let gameState = {
-            currentLevel: 1,
-            moves: 0,
-            matches: 0,
-            flippedCards: [],
-            lockBoard: false,
-            cards: [],
-            timer: null,
-            timeRemaining: 0,
-            jokerAvailable: true,
-            comboCount: 0,
-            startTime: null,
-            audioContext: null
+        const Achievements = [
+            { id: 'first_win', title: 'İlk Adım', desc: 'İlk seviyeyi tamamla.', icon: '👶', check: (d) => d.stats.wins >= 1 },
+            { id: 'rich', title: 'Hazine Avcısı', desc: '500 altına sahip ol.', icon: '💰', check: (d) => d.coins >= 500 },
+            { id: 'veteran', title: 'Veteran', desc: '50 oyun oyna.', icon: '🎖️', check: (d) => d.stats.totalGames >= 50 },
+            { id: 'master', title: 'Hafıza Ustası', desc: '20. Seviyeye ulaş.', icon: '🧠', check: (d) => d.maxLevelReached >= 20 }
+        ];
+
+        const LevelConfig = (level) => {
+            // Dinamik zorluk ayarı
+            let cols = 4, rows = 4, time = 0;
+            if (level > 2) { cols = 4; rows = 5; }
+            if (level > 5) { cols = 4; rows = 6; time = 120; }
+            if (level > 10) { cols = 5; rows = 6; time = 180; }
+            if (level > 15) { cols = 6; rows = 6; time = 240; }
+            
+            return {
+                rows, cols,
+                pairs: (rows * cols) / 2,
+                time: time
+            };
         };
 
-        // ============================================
-        // AUDIO SYSTEM (Web Audio API)
-        // ============================================
+        const Emojis = ['🦁', '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦒', '🦓', '🦌', '🐮', '🐷', '🐸', '🐵', '🍎', '🍌', '🍇', '🍓', '🍒', '🍑', '🍍', '🥝', '⚽', '🏀', '🏈', '⚾', '🎾', '🚀', '🛸', '🎸', '🎻'];
 
-        function initAudio() {
-            if (!gameState.audioContext) {
-                gameState.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-        }
+        // ==========================================
+        // 3. AUDIO SYSTEM
+        // ==========================================
+    // ==========================================
+        // 3. AUDIO SYSTEM (DÜZELTİLMİŞ)
+        // ==========================================
+        const AudioSys = {
+            ctx: null,
+            init() {
+                // Tarayıcı uyumluluğu için
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!this.ctx) this.ctx = new AudioContext();
+            },
+            play(type) {
+                if (!DataManager.data.settings.sfx) return;
+                this.init();
+                
+                // Chrome gibi tarayıcılar için context askıdaysa başlat
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
 
-        function playSound(type) {
-            initAudio();
-            const ctx = gameState.audioContext;
-            const oscillator = ctx.createOscillator();
-            const gainNode = ctx.createGain();
+                const now = this.ctx.currentTime;
 
-            oscillator.connect(gainNode);
-            gainNode.connect(ctx.destination);
-
-            switch (type) {
-                case 'flip':
-                    oscillator.frequency.value = 400;
-                    oscillator.type = 'sine';
-                    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-                    oscillator.start(ctx.currentTime);
-                    oscillator.stop(ctx.currentTime + 0.1);
-                    break;
-
-                case 'match':
-                    oscillator.frequency.value = 800;
-                    oscillator.type = 'sine';
-                    gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-                    oscillator.start(ctx.currentTime);
-                    oscillator.stop(ctx.currentTime + 0.3);
-
-                    // Add a second tone for richness
-                    const osc2 = ctx.createOscillator();
-                    const gain2 = ctx.createGain();
-                    osc2.connect(gain2);
-                    gain2.connect(ctx.destination);
-                    osc2.frequency.value = 1200;
-                    osc2.type = 'sine';
-                    gain2.gain.setValueAtTime(0.15, ctx.currentTime);
-                    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-                    osc2.start(ctx.currentTime + 0.05);
-                    osc2.stop(ctx.currentTime + 0.35);
-                    break;
-
-                case 'error':
-                    oscillator.frequency.value = 200;
-                    oscillator.type = 'sawtooth';
-                    gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-                    oscillator.start(ctx.currentTime);
-                    oscillator.stop(ctx.currentTime + 0.2);
-                    break;
-
-                case 'win':
-                    // Victory melody
-                    const notes = [523, 587, 659, 784, 880];
-                    notes.forEach((freq, i) => {
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-                        osc.frequency.value = freq;
-                        osc.type = 'sine';
-                        gain.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.15);
-                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.3);
-                        osc.start(ctx.currentTime + i * 0.15);
-                        osc.stop(ctx.currentTime + i * 0.15 + 0.3);
+                // WIN durumu için özel (çoklu nota)
+                if (type === 'win') {
+                    const notes = [523, 659, 784, 1046];
+                    notes.forEach((f, i) => {
+                        const o = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        o.connect(g);
+                        g.connect(this.ctx.destination);
+                        o.frequency.value = f;
+                        g.gain.value = 0.1;
+                        
+                        // Önce başlat, sonra durdurmayı zamanla
+                        o.start(now + i * 0.15);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 0.5);
+                        o.stop(now + i * 0.15 + 0.5);
                     });
-                    break;
+                    return; // Fonksiyondan çık, aşağıdaki standart sesi çalma
+                }
+
+                // FLIP ve MATCH için standart osilatör
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                // ÖNCE BAŞLAT (Hatayı çözen kısım burası)
+                osc.start(now);
+
+                if (type === 'flip') {
+                    osc.frequency.setValueAtTime(400, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    // Başladıktan sonra durdurmayı zamanla
+                    osc.stop(now + 0.1);
+                } else if (type === 'match') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.stop(now + 0.3);
+                } else {
+                    // Tanımsız bir ses tipi gelirse hemen durdur
+                    osc.stop(now);
+                }
             }
-        }
+        };
 
-        // ============================================
-        // GAME LOGIC
-        // ============================================
+        // ==========================================
+        // 4. GAME ENGINE
+        // ==========================================
+        const Game = {
+            state: {
+                level: 1,
+                cards: [],
+                flipped: [],
+                matches: 0,
+                moves: 0,
+                timer: null,
+                timeLeft: 0,
+                locked: false,
+                frozen: false
+            },
 
-        function getThemeForLevel(level) {
-            if (level <= 5) return emojiThemes.animals;
-            if (level <= 10) return emojiThemes.food;
-            if (level <= 15) return emojiThemes.sports;
-            return emojiThemes.travel;
-        }
+            start() {
+                this.state.level = DataManager.data.currentLevel;
+                Nav.to('game');
+                this.initLevel();
+                DataManager.data.stats.totalGames++;
+                DataManager.save();
+            },
 
-        function getGridConfigForLevel(level) {
-            if (level <= 4) return gridConfigs[0];
-            if (level <= 9) return gridConfigs[1];
-            if (level <= 14) return gridConfigs[2];
-            if (level <= 19) return gridConfigs[3];
-            return gridConfigs[4];
-        }
+            initLevel() {
+                const config = LevelConfig(this.state.level);
+                this.state.matches = 0;
+                this.state.moves = 0;
+                this.state.flipped = [];
+                this.state.locked = false;
+                this.state.frozen = false;
+                
+                // UI Güncelle
+                document.getElementById('gameLevel').innerText = this.state.level;
+                document.getElementById('gameMoves').innerText = 0;
+                
+                // Zamanlayıcı
+                if (this.state.timer) clearInterval(this.state.timer);
+                if (config.time > 0) {
+                    this.state.timeLeft = config.time;
+                    this.startTimer();
+                } else {
+                    document.getElementById('gameTimer').innerText = '∞';
+                }
 
-        function startGame() {
-            // Load saved progress
-            const savedLevel = localStorage.getItem('hafizaUstasiLevel');
-            if (savedLevel) {
-                gameState.currentLevel = parseInt(savedLevel);
-            }
+                // Grid Oluştur
+                const board = document.getElementById('gameBoard');
+                board.innerHTML = '';
+                board.style.gridTemplateColumns = `repeat(${config.cols}, 1fr)`;
 
-            document.getElementById('startScreen').classList.add('hidden');
-            initLevel();
-        }
+                // Kartları karıştır
+                const selection = Emojis.sort(() => 0.5 - Math.random()).slice(0, config.pairs);
+                const deck = [...selection, ...selection].sort(() => 0.5 - Math.random());
+                
+                this.state.cards = [];
+                deck.forEach((emoji, i) => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.dataset.value = emoji;
+                    card.dataset.id = i;
+                    card.innerHTML = `
+                        <div class="card-face card-front"></div>
+                        <div class="card-face card-back">${emoji}</div>
+                    `;
+                    card.onclick = () => this.flip(card);
+                    
+                    // Boyutlandırma
+                    const size = Math.min(80, (window.innerWidth - 40) / config.cols - 10);
+                    card.style.width = size + 'px';
+                    card.style.height = size + 'px';
+                    card.style.fontSize = size * 0.5 + 'px';
 
-        function initLevel() {
-            const theme = getThemeForLevel(gameState.currentLevel);
-            const config = getGridConfigForLevel(gameState.currentLevel);
-
-            // Reset state
-            gameState.moves = 0;
-            gameState.matches = 0;
-            gameState.flippedCards = [];
-            gameState.lockBoard = false;
-            gameState.cards = [];
-            gameState.jokerAvailable = true;
-            gameState.comboCount = 0;
-            gameState.startTime = Date.now();
-
-            if (gameState.timer) {
-                clearInterval(gameState.timer);
-                gameState.timer = null;
-            }
-
-            // Update UI
-            document.getElementById('levelDisplay').textContent = gameState.currentLevel;
-            document.getElementById('movesDisplay').textContent = gameState.moves;
-            document.getElementById('themeBadge').textContent = theme.name;
-            document.getElementById('jokerCount').textContent = '1';
-            document.getElementById('jokerBtn').disabled = false;
-
-            // Timer setup
-            if (config.time > 0) {
-                gameState.timeRemaining = config.time;
-                document.getElementById('timerContainer').style.display = 'flex';
-                document.getElementById('timerDisplay').textContent = formatTime(gameState.timeRemaining);
-                startTimer();
-            } else {
-                document.getElementById('timerContainer').style.display = 'none';
-            }
-
-            // Generate cards
-            const shuffledEmojis = [...theme.emojis].sort(() => Math.random() - 0.5);
-            const selectedEmojis = shuffledEmojis.slice(0, config.pairs);
-            const cardEmojis = [...selectedEmojis, ...selectedEmojis];
-            cardEmojis.sort(() => Math.random() - 0.5);
-
-            // Setup board
-            const gameBoard = document.getElementById('gameBoard');
-            gameBoard.innerHTML = '';
-            gameBoard.style.gridTemplateColumns = `repeat(${config.cols}, 1fr)`;
-            gameBoard.style.gridTemplateRows = `repeat(${config.rows}, 1fr)`;
-
-            // Calculate card size
-            const maxWidth = window.innerWidth * 0.9;
-            const maxHeight = window.innerHeight * 0.5;
-            const cardSize = Math.min(
-                Math.floor(maxWidth / config.cols) - 12,
-                Math.floor(maxHeight / config.rows) - 12,
-                100
-            );
-
-            // Create cards
-            cardEmojis.forEach((emoji, index) => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.style.width = `${cardSize}px`;
-                card.style.height = `${cardSize}px`;
-                card.dataset.emoji = emoji;
-                card.dataset.index = index;
-
-                card.innerHTML = `
-                    <div class="card-face card-front"></div>
-                    <div class="card-face card-back">${emoji}</div>
-                `;
-
-                card.addEventListener('click', () => flipCard(card));
-                gameBoard.appendChild(card);
-                gameState.cards.push(card);
-            });
-
-            // Preview mechanic - show all cards for 2 seconds
-            showPreview();
-        }
-
-        function showPreview() {
-            gameState.lockBoard = true;
-            gameState.cards.forEach(card => {
-                card.classList.add('flipped', 'preview');
-            });
-
-            setTimeout(() => {
-                gameState.cards.forEach(card => {
-                    card.classList.remove('flipped', 'preview');
+                    board.appendChild(card);
+                    this.state.cards.push(card);
                 });
-                gameState.lockBoard = false;
-            }, 2000);
-        }
 
-        function flipCard(card) {
-            if (gameState.lockBoard) return;
-            if (card === gameState.flippedCards[0]) return;
-            if (card.classList.contains('matched')) return;
-            if (card.classList.contains('flipped')) return;
+                // Başlangıç animasyonu
+                this.preview();
+            },
 
-            playSound('flip');
-            card.classList.add('flipped');
-            gameState.flippedCards.push(card);
+            preview() {
+                this.state.locked = true;
+                this.state.cards.forEach(c => c.classList.add('flipped'));
+                setTimeout(() => {
+                    this.state.cards.forEach(c => c.classList.remove('flipped'));
+                    this.state.locked = false;
+                }, 1500);
+            },
 
-            if (gameState.flippedCards.length === 2) {
-                checkMatch();
-            }
-        }
+            flip(card) {
+                if (this.state.locked || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+                
+                AudioSys.play('flip');
+                card.classList.add('flipped');
+                this.state.flipped.push(card);
 
-        function checkMatch() {
-            gameState.lockBoard = true;
-            gameState.moves++;
-            document.getElementById('movesDisplay').textContent = gameState.moves;
+                if (this.state.flipped.length === 2) {
+                    this.state.moves++;
+                    document.getElementById('gameMoves').innerText = this.state.moves;
+                    this.checkMatch();
+                }
+            },
 
-            const [card1, card2] = gameState.flippedCards;
-            const isMatch = card1.dataset.emoji === card2.dataset.emoji;
+            checkMatch() {
+                this.state.locked = true;
+                const [c1, c2] = this.state.flipped;
+                const match = c1.dataset.value === c2.dataset.value;
 
-            if (isMatch) {
-                handleMatch(card1, card2);
-            } else {
-                handleMismatch(card1, card2);
-            }
-        }
-
-        function handleMatch(card1, card2) {
-            playSound('match');
-
-            setTimeout(() => {
-                card1.classList.add('matched');
-                card2.classList.add('matched');
-
-                gameState.matches++;
-                gameState.comboCount++;
-
-                // Combo fire effect
-                if (gameState.comboCount >= 2) {
-                    document.getElementById('gameBoard').classList.add('combo-fire');
+                if (match) {
+                    AudioSys.play('match');
                     setTimeout(() => {
-                        document.getElementById('gameBoard').classList.remove('combo-fire');
+                        c1.classList.add('matched');
+                        c2.classList.add('matched');
+                        this.state.matches++;
+                        this.state.flipped = [];
+                        this.state.locked = false;
+                        
+                        // Altın kazan
+                        DataManager.addCoins(2);
+                        DataManager.data.stats.totalMatches++;
+                        
+                        const config = LevelConfig(this.state.level);
+                        if (this.state.matches === config.pairs) {
+                            this.win();
+                        }
+                    }, 500);
+                } else {
+                    setTimeout(() => {
+                        c1.classList.remove('flipped');
+                        c2.classList.remove('flipped');
+                        this.state.flipped = [];
+                        this.state.locked = false;
                     }, 1000);
                 }
+            },
 
-                gameState.flippedCards = [];
-                gameState.lockBoard = false;
+            startTimer() {
+                this.updateTimerDisplay();
+                this.state.timer = setInterval(() => {
+                    if(!this.state.frozen) {
+                        this.state.timeLeft--;
+                        this.updateTimerDisplay();
+                        if (this.state.timeLeft <= 0) {
+                            clearInterval(this.state.timer);
+                            this.gameOver();
+                        }
+                    }
+                }, 1000);
+            },
 
-                // Check win condition
-                const config = getGridConfigForLevel(gameState.currentLevel);
-                if (gameState.matches === config.pairs) {
-                    setTimeout(handleLevelComplete, 500);
+            updateTimerDisplay() {
+                const m = Math.floor(this.state.timeLeft / 60);
+                const s = this.state.timeLeft % 60;
+                document.getElementById('gameTimer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+            },
+
+            win() {
+                clearInterval(this.state.timer);
+                AudioSys.play('win');
+                
+                // İstatistikleri güncelle
+                DataManager.data.stats.wins++;
+                if (this.state.level === DataManager.data.maxLevelReached) {
+                    DataManager.data.maxLevelReached++;
                 }
-            }, 600);
-        }
+                
+                // Seviye tamamlama bonusu
+                const bonus = 20 + (this.state.level * 5);
+                DataManager.addCoins(bonus);
+                
+                AchievementSys.check(); // Başarım kontrolü
+                DataManager.save();
 
-        function handleMismatch(card1, card2) {
-            playSound('error');
-            gameState.comboCount = 0; // Reset combo
+                // Sonuç ekranı
+                document.getElementById('resultTitle').innerText = '🎉 KAZANDIN!';
+                document.getElementById('resultTitle').style.color = '#4ecdc4';
+                document.getElementById('resultStars').innerText = '⭐⭐⭐';
+                document.getElementById('resultMsg').innerText = `${this.state.moves} hamle yaptın ve ${bonus} altın kazandın!`;
+                document.getElementById('btnNextLevel').style.display = 'inline-block';
+                document.getElementById('overlay-result').style.display = 'flex';
+            },
 
-            setTimeout(() => {
-                card1.classList.add('unmatched');
-                card2.classList.add('unmatched');
+            gameOver() {
+                clearInterval(this.state.timer);
+                document.getElementById('resultTitle').innerText = '⏰ SÜRE DOLDU';
+                document.getElementById('resultTitle').style.color = '#ff6b6b';
+                document.getElementById('resultStars').innerText = '💔';
+                document.getElementById('resultMsg').innerText = 'Tekrar dene!';
+                document.getElementById('btnNextLevel').style.display = 'none';
+                document.getElementById('overlay-result').style.display = 'flex';
+            },
 
-                setTimeout(() => {
-                    card1.classList.remove('flipped', 'unmatched');
-                    card2.classList.remove('flipped', 'unmatched');
-                    gameState.flippedCards = [];
-                    gameState.lockBoard = false;
-                }, 500);
-            }, 800);
-        }
+            nextLevel() {
+                document.getElementById('overlay-result').style.display = 'none';
+                this.state.level++;
+                DataManager.data.currentLevel = this.state.level;
+                DataManager.save();
+                this.initLevel();
+            },
 
-        function handleLevelComplete() {
-            if (gameState.timer) {
-                clearInterval(gameState.timer);
+            restartLevel() {
+                document.getElementById('overlay-result').style.display = 'none';
+                this.initLevel();
+            },
+
+            quit() {
+                clearInterval(this.state.timer);
+                document.getElementById('overlay-result').style.display = 'none';
+                Nav.to('menu');
             }
+        };
 
-            playSound('win');
-
-            const stars = calculateStars();
-            showWinModal(stars);
-            createConfetti();
-
-            // Save progress
-            if (gameState.currentLevel < 20) {
-                localStorage.setItem('hafizaUstasiLevel', gameState.currentLevel + 1);
-            }
-        }
-
-        function calculateStars() {
-            const config = getGridConfigForLevel(gameState.currentLevel);
-            const timeTaken = (Date.now() - gameState.startTime) / 1000;
-            const perfectMoves = config.pairs;
-            const moveRatio = gameState.moves / perfectMoves;
-
-            // Star criteria
-            if (moveRatio <= 1.2 && (config.time === 0 || timeTaken < config.time * 0.5)) {
-                return 3; // Perfect
-            } else if (moveRatio <= 1.5 && (config.time === 0 || timeTaken < config.time * 0.75)) {
-                return 2; // Good
-            } else {
-                return 1; // Completed
-            }
-        }
-
-        function showWinModal(stars) {
-            const modal = document.getElementById('winModal');
-            const starsDisplay = document.getElementById('starsDisplay');
-            const winMessage = document.getElementById('winMessage');
-
-            starsDisplay.innerHTML = '';
-            for (let i = 0; i < 3; i++) {
-                const star = document.createElement('span');
-                star.className = 'star';
-                star.textContent = i < stars ? '⭐' : '☆';
-                starsDisplay.appendChild(star);
-            }
-
-            winMessage.textContent = `Seviye ${gameState.currentLevel} tamamlandı! ${gameState.moves} hamle kullandınız.`;
-            modal.classList.add('show');
-        }
-
-        function nextLevel() {
-            document.getElementById('winModal').classList.remove('show');
-
-            if (gameState.currentLevel >= 20) {
-                alert('🎉 Tebrikler! Tüm seviyeleri tamamladınız! 🎉');
-                gameState.currentLevel = 1;
-                localStorage.setItem('hafizaUstasiLevel', 1);
-            } else {
-                gameState.currentLevel++;
-            }
-
-            initLevel();
-        }
-
-        function restartLevel() {
-            document.getElementById('winModal').classList.remove('show');
-            document.getElementById('gameOverModal').classList.remove('show');
-            initLevel();
-        }
-
-        function useJoker() {
-            if (!gameState.jokerAvailable) return;
-
-            gameState.jokerAvailable = false;
-            gameState.lockBoard = true;
-            document.getElementById('jokerBtn').disabled = true;
-            document.getElementById('jokerCount').textContent = '0';
-
-            // Show all cards for 1 second
-            gameState.cards.forEach(card => {
-                if (!card.classList.contains('matched')) {
-                    card.classList.add('flipped');
+        // ==========================================
+        // 5. POWER-UPS LOGIC
+        // ==========================================
+        const PowerUps = {
+            use(type) {
+                if (DataManager.data.inventory[type] > 0) {
+                    DataManager.data.inventory[type]--;
+                    DataManager.save();
+                    
+                    if (type === 'joker') {
+                        Game.state.locked = true;
+                        Game.state.cards.forEach(c => {
+                            if (!c.classList.contains('matched')) c.classList.add('flipped');
+                        });
+                        setTimeout(() => {
+                            Game.state.cards.forEach(c => {
+                                if (!c.classList.contains('matched')) c.classList.remove('flipped');
+                            });
+                            Game.state.locked = false;
+                        }, 1000);
+                    } else if (type === 'freeze') {
+                        Game.state.frozen = true;
+                        document.getElementById('gameTimer').style.color = '#4ecdc4';
+                        Toast.show('Zaman 10sn durduruldu!', '❄️');
+                        setTimeout(() => {
+                            Game.state.frozen = false;
+                            document.getElementById('gameTimer').style.color = 'white';
+                        }, 10000);
+                    } else if (type === 'hint') {
+                        const unmatched = Game.state.cards.filter(c => !c.classList.contains('matched'));
+                        if (unmatched.length > 0) {
+                            const first = unmatched[0];
+                            const match = unmatched.find(c => c !== first && c.dataset.value === first.dataset.value);
+                            first.classList.add('flipped');
+                            match.classList.add('flipped');
+                            setTimeout(() => {
+                                first.classList.remove('flipped');
+                                match.classList.remove('flipped');
+                            }, 1000);
+                        }
+                    }
                 }
-            });
+            }
+        };
 
-            setTimeout(() => {
-                gameState.cards.forEach(card => {
-                    if (!card.classList.contains('matched')) {
-                        card.classList.remove('flipped');
+        // ==========================================
+        // 6. UI & NAVIGATION
+        // ==========================================
+        const Nav = {
+            to(screenId) {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById(`screen-${screenId}`).classList.add('active');
+                
+                if (screenId === 'shop') Shop.render();
+                if (screenId === 'achievements') AchievementSys.render();
+                if (screenId === 'stats') Stats.render();
+            }
+        };
+
+        const Toast = {
+            show(msg, icon) {
+                const el = document.getElementById('toast');
+                document.getElementById('toastMsg').innerText = msg;
+                document.querySelector('.toast-icon').innerText = icon || 'ℹ️';
+                el.classList.add('show');
+                setTimeout(() => el.classList.remove('show'), 3000);
+            }
+        };
+
+        const Shop = {
+            render() {
+                const grid = document.getElementById('shopGrid');
+                grid.innerHTML = '';
+                ShopItems.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = 'shop-card';
+                    el.innerHTML = `
+                        <div class="shop-icon">${item.icon}</div>
+                        <div class="shop-name">${item.name}</div>
+                        <div class="shop-desc">${item.desc}</div>
+                        <div class="shop-price">${item.price} Altın</div>
+                        <button class="btn btn-success" onclick="Shop.buy('${item.id}', ${item.price})">Satın Al</button>
+                    `;
+                    grid.appendChild(el);
+                });
+            },
+            buy(itemId, price) {
+                if (DataManager.spendCoins(price)) {
+                    DataManager.data.inventory[itemId]++;
+                    DataManager.save();
+                    Toast.show('Satın alım başarılı!', '✅');
+                }
+            }
+        };
+
+        const AchievementSys = {
+            check() {
+                Achievements.forEach(ach => {
+                    if (!DataManager.data.achievements.includes(ach.id)) {
+                        if (ach.check(DataManager.data)) {
+                            DataManager.data.achievements.push(ach.id);
+                            Toast.show(`Başarım: ${ach.title}`, ach.icon);
+                            DataManager.save();
+                        }
                     }
                 });
-                gameState.lockBoard = false;
-            }, 1000);
-        }
-
-        function startTimer() {
-            gameState.timer = setInterval(() => {
-                gameState.timeRemaining--;
-                const timerDisplay = document.getElementById('timerDisplay');
-                timerDisplay.textContent = formatTime(gameState.timeRemaining);
-
-                if (gameState.timeRemaining <= 30) {
-                    timerDisplay.classList.add('warning');
-                }
-
-                if (gameState.timeRemaining <= 0) {
-                    clearInterval(gameState.timer);
-                    handleGameOver();
-                }
-            }, 1000);
-        }
-
-        function handleGameOver() {
-            gameState.lockBoard = true;
-            document.getElementById('gameOverModal').classList.add('show');
-        }
-
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        function createConfetti() {
-            const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#f093fb', '#48dbfb'];
-
-            for (let i = 0; i < 100; i++) {
-                setTimeout(() => {
-                    const confetti = document.createElement('div');
-                    confetti.className = 'confetti';
-                    confetti.style.left = Math.random() * window.innerWidth + 'px';
-                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-                    confetti.style.animationDelay = Math.random() * 3 + 's';
-                    document.body.appendChild(confetti);
-
-                    setTimeout(() => confetti.remove(), 3000);
-                }, i * 30);
-            }
-        }
-
-        // Responsive resize
-        window.addEventListener('resize', () => {
-            if (gameState.cards.length > 0) {
-                const config = getGridConfigForLevel(gameState.currentLevel);
-                const maxWidth = window.innerWidth * 0.9;
-                const maxHeight = window.innerHeight * 0.5;
-                const cardSize = Math.min(
-                    Math.floor(maxWidth / config.cols) - 12,
-                    Math.floor(maxHeight / config.rows) - 12,
-                    100
-                );
-                gameState.cards.forEach(card => {
-                    card.style.width = `${cardSize}px`;
-                    card.style.height = `${cardSize}px`;
+            },
+            render() {
+                const grid = document.getElementById('achievementsGrid');
+                grid.innerHTML = '';
+                Achievements.forEach(ach => {
+                    const unlocked = DataManager.data.achievements.includes(ach.id);
+                    const el = document.createElement('div');
+                    el.className = `achievement-card ${unlocked ? 'unlocked' : ''}`;
+                    el.innerHTML = `
+                        <div class="ach-icon">${ach.icon}</div>
+                        <div class="ach-info">
+                            <div class="ach-title">${ach.title} ${unlocked ? '✅' : '🔒'}</div>
+                            <div class="ach-desc">${ach.desc}</div>
+                        </div>
+                    `;
+                    grid.appendChild(el);
                 });
             }
-        });
+        };
+
+        const Stats = {
+            render() {
+                document.getElementById('statTotalGames').innerText = DataManager.data.stats.totalGames;
+                document.getElementById('statWins').innerText = DataManager.data.stats.wins;
+                document.getElementById('statTotalMatches').innerText = DataManager.data.stats.totalMatches;
+                document.getElementById('statMaxLevel').innerText = DataManager.data.maxLevelReached;
+            }
+        };
+        
+        const Settings = {
+            toggle(key) {
+                DataManager.data.settings[key] = !DataManager.data.settings[key];
+                document.getElementById(key === 'music' ? 'toggleMusic' : 'toggleSfx')
+                    .classList.toggle('active', DataManager.data.settings[key]);
+                DataManager.save();
+            }
+        };
+
+        // --- Init ---
+        window.onload = () => {
+            DataManager.init();
+            // Background Floating Emojis
+            const container = document.getElementById('floatingContainer');
+            for(let i=0; i<15; i++) {
+                const el = document.createElement('div');
+                el.className = 'floating-emoji';
+                el.innerText = Emojis[Math.floor(Math.random() * Emojis.length)];
+                el.style.left = Math.random() * 100 + '%';
+                el.style.animationDelay = Math.random() * 5 + 's';
+                el.style.animationDuration = (10 + Math.random() * 20) + 's';
+                container.appendChild(el);
+            }
+            
+            // Settings UI Sync
+            document.getElementById('toggleMusic').classList.toggle('active', DataManager.data.settings.music);
+            document.getElementById('toggleSfx').classList.toggle('active', DataManager.data.settings.sfx);
+        };
+
     </script>
 </body>
-
 </html>
