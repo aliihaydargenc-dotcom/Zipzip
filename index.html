@@ -5,9 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Hafıza Ustası Pro 🏆</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #667eea;
@@ -29,17 +27,16 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-      body {
-            /* Fredoka gitti, Nunito geldi */
-            font-family: 'Nunito', sans-serif;
-            
-            /* Diğer ayarların aynen kalsın */
-            height: 100dvh;
+        body {
+            font-family: 'Fredoka', sans-serif;
+            /* 100vh yerine 100dvh kullanıyoruz. d = dynamic. 
+               Adres çubuğu varsa ona göre, yoksa tam ekrana göre ayarlar. */
+            height: 100dvh; 
             width: 100vw;
-            overflow: hidden;
+            overflow: hidden; /* Kaydırmayı tamamen kapatır */
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             color: white;
-            position: fixed;
+            position: fixed; /* Ekranı çiviler, titremeyi engeller */
             top: 0;
             left: 0;
         }
@@ -134,7 +131,6 @@
             text-align: center;
             background: linear-gradient(45deg, #ffd700, #ff6b6b, #4ecdc4);
             -webkit-background-clip: text;
-  background-clip: text; /* VS Code'un istediği standart kod bu */
             -webkit-text-fill-color: transparent;
             filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.3));
             animation: pulseTitle 3s infinite ease-in-out;
@@ -155,7 +151,6 @@
 
         .summary-item { display: flex; align-items: center; gap: 8px; font-size: 1.2rem; font-weight: 700; }
 
-       /* --- MENÜ IZGARA YAPISI (Grid) --- */
         .menu-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -164,64 +159,43 @@
             width: 100%;
         }
 
-        /* --- BUTON TASARIMI (RGB Gradient) --- */
         .menu-btn {
-            /* Canlı RGB Arka Plan */
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #ff7eb3 100%);
-            
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 30px;
+            background: rgba(255,255,255,0.08);
             border-radius: 20px;
             cursor: pointer;
-            
-            /* Kenarlık ve Gölge */
-            border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 10px 20px rgba(118, 75, 162, 0.4);
-            
-            /* Animasyonlar */
-            transition: transform 0.3s ease, box-shadow 0.3s ease, filter 0.3s;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
         }
 
         .menu-btn:hover {
-            transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 15px 30px rgba(118, 75, 162, 0.6);
-            filter: brightness(1.1); /* Parlama efekti */
-            border-color: #fff;
+            background: rgba(255,255,255,0.15);
+            border-color: var(--primary);
+            transform: translateY(-5px);
         }
 
-        /* --- İKON AYARLARI (Senin aradığın kısım burası) --- */
-        .menu-btn-icon { 
-            font-size: 3rem; 
-            margin-bottom: 10px;
-            /* İkona hafif gölge verelim ki renkli zeminde patlasın */
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-        }
-
-        /* --- YAZI AYARLARI --- */
-        .menu-btn-text { 
-            font-size: 1.2rem; 
-            font-weight: 700;
-            color: white;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
+        .menu-btn-icon { font-size: 3rem; margin-bottom: 10px; }
+        .menu-btn-text { font-size: 1.2rem; font-weight: 600; }
         
-        /* --- OYNA BUTONU (En büyük buton) --- */
         .play-btn-large {
-            grid-column: span 2; /* 2 sütunluk yer kapla */
-            /* Oyna butonu biraz daha farklı, daha dikkat çekici olsun */
-            background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
-            background-size: 200% auto;
-            animation: gradientMove 3s ease infinite;
+            grid-column: span 2;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
         }
-        
-        /* Oyna butonunun hareketli rengi için */
-        @keyframes gradientMove {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+
+        /* --- Modals (Shop, Stats, etc) --- */
+        .modal-header {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            margin-top: 20px;
         }
 
         .modal-title { font-size: 2.5rem; color: var(--accent); }
