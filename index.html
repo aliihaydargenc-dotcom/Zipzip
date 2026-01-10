@@ -1,2380 +1,1201 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#0a0a1a">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Sky Jumper - Ultimate Edition</title>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hafıza Ustası 🧠</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent }
-        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; top: 0; left: 0 }
-        body { font-family: 'Outfit', sans-serif; background: #0a0a1a; display: flex; justify-content: center; align-items: center; -webkit-font-smoothing: antialiased }
-        #gameContainer { position: relative; width: 100%; max-width: 480px; height: 100%; max-height: 100vh; overflow: hidden; background: #1a1a2e; margin: auto; }
-        @media(min-width:600px) { #gameContainer { max-height: 850px; border-radius: 20px; box-shadow: 0 0 80px rgba(99, 102, 241, 0.4) } }
-        #gameCanvas { display: block; width: 100%; height: 100% }
-        
-        /* Mobil Kontroller */
-        .mobile-controls { position: absolute; bottom: 0; left: 0; right: 0; height: 120px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; pointer-events: none; z-index: 40 }
-        .mobile-btn { width: 70px; height: 70px; border-radius: 50%; background: rgba(99, 102, 241, 0.85); backdrop-filter: blur(10px); border: 3px solid rgba(255,255,255,0.3); color: white; font-size: 28px; display: flex; justify-content: center; align-items: center; pointer-events: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.3); transition: all 0.1s; touch-action: manipulation; }
-        .mobile-btn:active { transform: scale(0.92); background: rgba(79, 70, 229, 0.95); }
-        .mobile-btn.jump { background: rgba(236, 72, 153, 0.85); }
-        .mobile-btn.jump:active { background: rgba(219, 39, 119, 0.95); }
-        .mobile-btn.rage { background: rgba(255, 107, 0, 0.85); width: 140px; height: 60px; border-radius: 30px; font-size: 18px; font-family: 'Fredoka One'; position: absolute; left: 50%; bottom: 25px; transform: translateX(-50%); }
-        .mobile-btn.rage:active { background: rgba(255, 69, 0, 0.95); }
-        .mobile-btn.rage.ready { animation: ragePulse 1s infinite; }
-        @keyframes ragePulse { 0% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(255, 107, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0); } }
-        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+            background-size: 400% 400%;
+            animation: meshGradient 15s ease infinite;
+            color: white;
+            position: relative;
+        }
+
+        @keyframes meshGradient {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            25% {
+                background-position: 100% 50%;
+            }
+
+            50% {
+                background-position: 50% 100%;
+            }
+
+            75% {
+                background-position: 50% 0%;
+            }
+        }
+
+        /* Floating shapes background */
+        .shapes-container {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .shape:nth-child(1) {
+            width: 150px;
+            height: 150px;
+            left: 10%;
+            top: 20%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            width: 100px;
+            height: 100px;
+            right: 15%;
+            top: 40%;
+            animation-delay: 3s;
+        }
+
+        .shape:nth-child(3) {
+            width: 120px;
+            height: 120px;
+            left: 50%;
+            bottom: 20%;
+            animation-delay: 6s;
+        }
+
+        .shape:nth-child(4) {
+            width: 80px;
+            height: 80px;
+            right: 30%;
+            bottom: 30%;
+            animation-delay: 9s;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            50% {
+                transform: translateY(-50px) rotate(180deg);
+            }
+        }
+
+        /* Start Screen */
+        .start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.95), rgba(83, 52, 131, 0.95));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s ease;
+        }
+
+        .start-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .game-title {
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(45deg, #ffd700, #ff6b6b, #4ecdc4, #ff6b6b, #ffd700);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s linear infinite;
+            margin-bottom: 30px;
+            text-align: center;
+            text-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
+        }
+
+        @keyframes shimmer {
+            to {
+                background-position: 200% center;
+            }
+        }
+
+        .start-subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 50px;
+            opacity: 0.9;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .btn-play {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 25px 60px;
+            font-size: 2rem;
+            font-weight: 700;
+            border-radius: 60px;
+            cursor: pointer;
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .btn-play:hover {
+            transform: translateY(-5px) scale(1.08);
+            box-shadow: 0 20px 50px rgba(102, 126, 234, 0.8);
+        }
+
+        /* Game Container */
+        .game-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
         /* HUD */
-        .hud { position: absolute; top: 0; left: 0; right: 0; padding: 12px; display: flex; justify-content: space-between; pointer-events: none; z-index: 50 }
-        .hud-left, .hud-right { display: flex; flex-direction: column; gap: 5px }
-        .hud-item { background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); border-radius: 12px; padding: 6px 12px; display: flex; align-items: center; gap: 5px }
-        .hud-icon { font-size: 16px }
-        .hud-value { font-family: 'Fredoka One'; font-size: 18px; color: #fff }
-        .hearts { display: flex; gap: 2px }
-        .heart { font-size: 18px; filter: drop-shadow(0 0 3px #ff6b6b) }
-        .heart.empty { opacity: 0.3; filter: none }
-        
-        /* Öfke Barı */
-        .rage-container { position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%); width: 80%; max-width: 300px; z-index: 60; pointer-events: none; display: none; }
-        .rage-bar-bg { width: 100%; height: 16px; background: rgba(0,0,0,0.6); border-radius: 8px; overflow: hidden; border: 2px solid rgba(255,100,0,0.3) }
-        .rage-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff4500, #ff6b00, #ffaa00); border-radius: 6px; transition: width 0.1s; box-shadow: 0 0 10px #ff4500 }
-        
-        /* Güçlendirici Çubuğu */
-        .powerup-bar { position: absolute; top: 100px; right: 10px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; z-index: 50 }
-        .powerup-icon { width: 40px; height: 40px; background: rgba(0,0,0,0.6); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 18px; opacity: 0.3; transition: all 0.2s; position: relative; margin-bottom: 5px; }
-        .powerup-icon.active { opacity: 1; transform: scale(1.1); box-shadow: 0 0 12px currentColor }
-        .powerup-timer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; pointer-events: none }
-        .powerup-icon .timer-text { position: absolute; bottom: -15px; font-size: 10px; font-weight: bold; color: white; text-shadow: 0 0 3px black; }
-        
-        /* Kombolar ve Başarımlar */
-        .combo-display { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-family: 'Fredoka One'; font-size: 42px; color: #ffd700; opacity: 0; pointer-events: none; text-shadow: 0 0 15px #ffd700; z-index: 60 }
-        .combo-display.show { opacity: 1; animation: comboPop 0.6s ease-out }
-        @keyframes comboPop { 0% { transform: translate(-50%, -50%) scale(0.5) } 50% { transform: translate(-50%, -60%) scale(1.3) } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0 } }
-        .achievement-popup { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, rgba(99,102,241,0.9), rgba(236,72,153,0.9)); padding: 10px 20px; border-radius: 16px; display: flex; align-items: center; gap: 8px; opacity: 0; pointer-events: none; z-index: 100; transition: all 0.4s }
-        .achievement-popup.show { opacity: 1; transform: translateX(-50%) translateY(10px) }
-        .achievement-icon { font-size: 24px }
-        .achievement-text { font-family: 'Fredoka One'; font-size: 14px; color: #fff }
-        
-        /* Seviye Göstergesi */
-        .level-indicator { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); border-radius: 20px; padding: 8px 20px; font-family: 'Fredoka One'; font-size: 16px; color: #fff; z-index: 45; pointer-events: none; opacity: 0; transition: opacity 0.5s; border: 2px solid rgba(255,255,255,0.2); }
-        .level-indicator.show { opacity: 1; }
-        .level-indicator .level-name { color: #ffd700; }
-        
-        /* Çarpan Göstergesi */
-        .multiplier-display { position: absolute; top: 180px; right: 20px; background: rgba(0,0,0,0.7); color: #ffd700; padding: 5px 15px; border-radius: 15px; font-family: 'Fredoka One'; font-size: 18px; z-index: 51; border: 2px solid #ffd700; display: none; }
-        
-        /* Rush Modu Zamanlayıcı */
-        .rush-timer { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); background: rgba(255,69,0,0.8); color: white; padding: 8px 20px; border-radius: 20px; font-family: 'Fredoka One'; font-size: 20px; z-index: 51; }
-        
-        /* Menüler */
-        .menu-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,10,26,0.95); backdrop-filter: blur(15px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; padding: 20px }
-        .menu-overlay.hidden { display: none }
-        .game-title { font-family: 'Fredoka One'; font-size: clamp(36px, 10vw, 56px); background: linear-gradient(135deg, #00d4ff, #ff006e, #00ff88); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-align: center; margin-bottom: 5px }
-        .subtitle { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 25px; letter-spacing: 3px; text-transform: uppercase }
-        
-        /* Günlük Ödül */
-        .daily-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,10,26,0.95); backdrop-filter: blur(10px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; color: white; }
-        
-        /* Skin Seçici */
-        .skin-picker { display: flex; align-items: center; gap: 16px; margin-bottom: 25px }
-        .skin-preview { width: 60px; height: 60px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 36px; border: 2px solid rgba(255,255,255,0.2) }
-        .skin-arrow { width: 40px; height: 40px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: #fff; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center; z-index: 1001; }
-        
-        /* Butonlar */
-        .play-btn { padding: 14px 45px; font-family: 'Fredoka One'; font-size: 20px; border: none; border-radius: 40px; cursor: pointer; background: linear-gradient(135deg, #6366f1, #ec4899); color: white; box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4); text-transform: uppercase; letter-spacing: 2px; z-index: 1001; margin-top: 10px; }
-        .play-btn:active { transform: scale(0.98); }
-        .play-btn.rush { background: linear-gradient(135deg, #ff6b00, #ff4500); margin-top: 5px; }
-        
-        /* İstatistikler */
-        .stats-row { display: flex; gap: 20px; margin-top: 25px }
-        .stat-item { text-align: center }
-        .stat-label { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 2px }
-        .stat-value { font-family: 'Fredoka One'; font-size: 20px; color: #fff }
-        
-        /* Duraklatma Menüsü */
-        .pause-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,10,26,0.85); backdrop-filter: blur(8px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.2s }
-        .pause-overlay.show { opacity: 1; pointer-events: auto }
-        .pause-title { font-family: 'Fredoka One'; font-size: 28px; color: #fff; margin-bottom: 25px }
-        .pause-btn { padding: 10px 35px; margin: 6px; font-family: 'Outfit'; font-size: 14px; font-weight: 600; border: 2px solid rgba(255,255,255,0.3); border-radius: 25px; background: transparent; color: #fff; cursor: pointer; z-index: 1001; }
-        .pause-btn:active { transform: scale(0.98); }
-        .pause-btn.primary { background: linear-gradient(135deg, #6366f1, #ec4899); border: none }
-        
-        /* Oyun Bitti */
-        .game-over-title { font-family: 'Fredoka One'; font-size: clamp(28px, 8vw, 42px); color: #ff6b6b; margin-bottom: 12px }
-        .final-score { font-family: 'Fredoka One'; font-size: clamp(38px, 12vw, 60px); background: linear-gradient(135deg, #ffd700, #ff6b6b); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 5px }
-        .score-label { font-size: 12px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 25px }
-        .new-record { color: #ffd700; font-size: 12px; margin-bottom: 15px; animation: pulse 1s infinite }
-        @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.5 } }
-        
-        /* Mobil Duraklatma Butonu */
-        .mobile-pause { position: absolute; top: 15px; right: 15px; width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); border: 2px solid rgba(255,255,255,0.3); color: white; font-size: 20px; display: flex; justify-content: center; align-items: center; z-index: 1001; pointer-events: auto; }
-        .mobile-pause:active { transform: scale(0.95); }
-        
-        /* Mobil Kontroller Görünürlüğü */
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .hud-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100px;
+        }
+
+        .hud-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .hud-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #ffd700;
+        }
+
+        .timer {
+            color: #ff6b6b;
+            font-size: 2rem;
+        }
+
+        .timer.warning {
+            animation: timerPulse 1s infinite;
+        }
+
+        @keyframes timerPulse {
+
+            0%,
+            100% {
+                color: #ff6b6b;
+                transform: scale(1);
+            }
+
+            50% {
+                color: #ff3838;
+                transform: scale(1.1);
+            }
+        }
+
+        .joker-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(240, 147, 251, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .joker-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(240, 147, 251, 0.7);
+        }
+
+        .joker-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Theme Badge */
+        .theme-badge {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            box-shadow: 0 5px 15px rgba(250, 112, 154, 0.4);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Game Board */
+        .game-board-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 0;
+        }
+
+        .game-board {
+            display: grid;
+            gap: 12px;
+            perspective: 1000px;
+            max-width: 100%;
+        }
+
+        .game-board.combo-fire {
+            animation: comboGlow 1s ease;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.8);
+            border-radius: 20px;
+            padding: 10px;
+        }
+
+        @keyframes comboGlow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 60px rgba(255, 215, 0, 1);
+            }
+        }
+
+        /* Card Styling */
+        .card {
+            position: relative;
+            cursor: pointer;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            animation: matchBounce 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            pointer-events: none;
+        }
+
+        @keyframes matchBounce {
+            0% {
+                transform: rotateY(180deg) scale(1);
+            }
+
+            25% {
+                transform: rotateY(180deg) scale(1.3);
+            }
+
+            50% {
+                transform: rotateY(180deg) scale(0.9);
+            }
+
+            75% {
+                transform: rotateY(180deg) scale(1.1);
+            }
+
+            100% {
+                transform: rotateY(180deg) scale(1);
+            }
+        }
+
+        .card.unmatched {
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-15px) rotate(-5deg);
+            }
+
+            75% {
+                transform: translateX(15px) rotate(5deg);
+            }
+        }
+
+        .card.preview {
+            animation: flipPreview 0.6s ease;
+        }
+
+        @keyframes flipPreview {
+            0% {
+                transform: rotateY(0deg);
+            }
+
+            100% {
+                transform: rotateY(180deg);
+            }
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover .card-face {
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .card-front {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #ff9a56 100%);
+            background-size: 200% 200%;
+            animation: cardGradient 4s ease infinite;
+        }
+
+        @keyframes cardGradient {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .card-front::before {
+            content: '?';
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            transform: rotateY(180deg);
+            font-size: 2.5rem;
+            color: #333;
+        }
+
+        /* Modals */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.98), rgba(83, 52, 131, 0.98));
+            padding: 50px;
+            border-radius: 30px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ffd700, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .modal-subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .stars {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            font-size: 3rem;
+        }
+
+        .star {
+            animation: starPop 0.5s ease backwards;
+        }
+
+        .star:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .star:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+
+        .star:nth-child(3) {
+            animation-delay: 0.5s;
+        }
+
+        @keyframes starPop {
+            0% {
+                transform: scale(0) rotate(-180deg);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        .btn-modal {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn-modal:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.7);
+        }
+
+        /* Confetti */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #ffd700;
+            position: fixed;
+            top: -10px;
+            z-index: 5000;
+            animation: confettiFall 3s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes confettiFall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
-            .mobile-controls { display: flex; }
-            .rage-container { display: none; }
-            .powerup-bar { top: 70px; right: 10px; }
-            .hud { padding-top: max(12px, env(safe-area-inset-top)); }
-            .mobile-pause { top: max(15px, env(safe-area-inset-top)); }
+            .game-title {
+                font-size: 2.5rem;
+            }
+
+            .start-subtitle {
+                font-size: 1.2rem;
+            }
+
+            .btn-play {
+                padding: 20px 40px;
+                font-size: 1.5rem;
+            }
+
+            .hud {
+                padding: 15px;
+            }
+
+            .hud-value {
+                font-size: 1.5rem;
+            }
+
+            .theme-badge {
+                font-size: 1.1rem;
+            }
+
+            .game-board {
+                gap: 8px;
+            }
+
+            .card-back {
+                font-size: 2rem;
+            }
+
+            .modal-content {
+                padding: 30px;
+                max-width: 90%;
+            }
+
+            .modal-title {
+                font-size: 2rem;
+            }
         }
-        @media (min-width: 769px) {
-            .mobile-controls { display: none; }
-            .rage-container { display: block; }
-            .mobile-pause { display: none; }
-        }
-        
-        /* Safe Area Desteği */
-        @supports (padding: max(0px)) {
-            .hud { padding-top: max(12px, env(safe-area-inset-top)); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
-            .mobile-controls { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+
+        @media (max-width: 480px) {
+            .game-title {
+                font-size: 2rem;
+            }
+
+            .btn-play {
+                padding: 15px 30px;
+                font-size: 1.2rem;
+            }
+
+            .hud-value {
+                font-size: 1.2rem;
+            }
+
+            .card-front::before {
+                font-size: 1.5rem;
+            }
+
+            .card-back {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
+
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        
-        <!-- Mobil Kontroller -->
-        <div class="mobile-controls">
-            <div class="mobile-btn left" id="mobileLeft">
-                <i class="fas fa-arrow-left"></i>
-            </div>
-            <div class="mobile-btn jump" id="mobileJump">
-                <i class="fas fa-arrow-up"></i>
-            </div>
-            <div class="mobile-btn right" id="mobileRight">
-                <i class="fas fa-arrow-right"></i>
-            </div>
-            <div class="mobile-btn rage" id="mobileRage">
-                🔥 SÜPER ZIPLA
-            </div>
-        </div>
-        
-        <!-- Mobil Duraklatma Butonu -->
-        <div class="mobile-pause" id="mobilePauseBtn">
-            <i class="fas fa-pause"></i>
-        </div>
-        
-        <!-- Seviye Göstergesi -->
-        <div class="level-indicator" id="levelIndicator">
-            Seviye: <span class="level-name" id="levelName">BAŞLANGIÇ</span>
-        </div>
-        
-        <!-- Skor Çarpanı Göstergesi -->
-        <div class="multiplier-display" id="multiplierDisplay"></div>
-        
-        <!-- Rush Modu Zamanlayıcı -->
-        <div class="rush-timer" id="rushTimer" style="display:none;">2:00</div>
-        
-        <!-- Oyun HUD -->
+    <!-- Background Shapes -->
+    <div class="shapes-container">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+
+    <!-- Start Screen -->
+    <div class="start-screen" id="startScreen">
+        <h1 class="game-title">🧠 Hafıza Ustası 🧠</h1>
+        <p class="start-subtitle">20 Seviye, 4 Tema, Sonsuz Eğlence!</p>
+        <button class="btn-play" onclick="startGame()">OYNA</button>
+    </div>
+
+    <!-- Game Container -->
+    <div class="game-container">
+        <!-- HUD -->
         <div class="hud">
-            <div class="hud-left">
-                <div class="hud-item"><span class="hud-icon">⭐</span><span class="hud-value" id="scoreDisplay">0</span></div>
-                <div class="hud-item"><span class="hud-icon">📏</span><span class="hud-value" id="heightDisplay">0m</span></div>
+            <div class="hud-item">
+                <div class="hud-label">Seviye</div>
+                <div class="hud-value" id="levelDisplay">1</div>
             </div>
-            <div class="hud-right">
-                <div class="hud-item hearts" id="heartsDisplay"></div>
-                <div class="hud-item"><span class="hud-icon">🔥</span><span class="hud-value" id="comboDisplay">x1</span></div>
+            <div class="hud-item">
+                <div class="hud-label">Hamle</div>
+                <div class="hud-value" id="movesDisplay">0</div>
             </div>
-        </div>
-
-        <!-- Masaüstü Öfke Barı -->
-        <div class="rage-container" id="rageContainer">
-            <div class="rage-bar-bg"><div class="rage-bar-fill" id="rageFill"></div></div>
-            <button class="rage-btn" id="rageBtn" ontouchstart="activateRage(event)" onclick="activateRage(event)">🔥 SÜPER FIRLA!</button>
-        </div>
-
-        <!-- Güçlendirici Çubuğu -->
-        <div class="powerup-bar" id="powerupBar">
-            <div class="powerup-icon" id="pu-shield" style="color:#60a5fa"><svg class="powerup-timer" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="0 100" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg><span style="position:absolute">◆</span><div class="timer-text" id="timer-shield"></div></div>
-            <div class="powerup-icon" id="pu-magnet" style="color:#f472b6"><svg class="powerup-timer" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="0 100" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg><span style="position:absolute">◎</span><div class="timer-text" id="timer-magnet"></div></div>
-            <div class="powerup-icon" id="pu-double" style="color:#a78bfa"><svg class="powerup-timer" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="0 100" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg><span style="position:absolute">▲</span><div class="timer-text" id="timer-double"></div></div>
-            <div class="powerup-icon" id="pu-speed" style="color:#fbbf24"><svg class="powerup-timer" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="0 100" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg><span style="position:absolute">★</span><div class="timer-text" id="timer-speed"></div></div>
-            <div class="powerup-icon" id="pu-fire" style="color:#ff4500"><svg class="powerup-timer" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="0 100" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg><span style="position:absolute">◕</span><div class="timer-text" id="timer-fire"></div></div>
-            <div class="powerup-icon" id="pu-slow" style="color:#8b5cf6"><svg class="powerup-timer" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="0 100" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg><span style="position:absolute">⏱️</span><div class="timer-text" id="timer-slow"></div></div>
-        </div>
-
-        <!-- Kombolar ve Başarımlar -->
-        <div class="combo-display" id="comboPopup"></div>
-        <div class="achievement-popup" id="achievementPopup"><span class="achievement-icon">🏆</span><span class="achievement-text" id="achievementText"></span></div>
-
-        <!-- Menüler -->
-        <div class="pause-overlay" id="pauseOverlay">
-            <div class="pause-title">⏸️ DURDURULDU</div>
-            <button class="pause-btn primary" onclick="resumeGame()">▶️ DEVAM</button>
-            <button class="pause-btn" onclick="restartGame()">🔄 YENİDEN</button>
-            <button class="pause-btn" onclick="quitGame()">🏠 ÇIKIŞ</button>
-        </div>
-
-        <div id="mainMenu" class="menu-overlay">
-            <h1 class="game-title">SKY JUMPER</h1>
-            <p class="subtitle">Ultimate Edition</p>
-            <div class="skin-picker">
-                <button class="skin-arrow" onclick="changeSkin(-1)">◀</button>
-                <div class="skin-preview" id="skinPreview">🔵</div>
-                <button class="skin-arrow" onclick="changeSkin(1)">▶</button>
+            <div class="hud-item" id="timerContainer" style="display: none;">
+                <div class="hud-label">Süre</div>
+                <div class="hud-value timer" id="timerDisplay">0</div>
             </div>
-            <button class="play-btn" id="startBtn">▶ NORMAL OYUN</button>
-            <button class="play-btn rush" id="rushBtn">⚡ HIZLI MOD</button>
-            <div class="stats-row">
-                <div class="stat-item"><div class="stat-label">En İyi</div><div class="stat-value" id="bestScore">0</div></div>
-                <div class="stat-item"><div class="stat-label">Yükseklik</div><div class="stat-value" id="bestHeight">0m</div></div>
-                <div class="stat-item"><div class="stat-label">Seviye</div><div class="stat-value" id="bestLevel">1</div></div>
-            </div>
-            <div style="margin-top: 30px; color: rgba(255,255,255,0.6); font-size: 12px; text-align: center; max-width: 80%;">
-                <p>📱 Mobil Kontroller: Sol/Sağ ok tuşları ve Zıpla butonu</p>
-                <p>🔥 Öfke barı dolunca Süper Zıpla butonunu kullan</p>
-                <p>🎮 Hızlı Mod: 2 dakika içinde en yüksek skoru yap!</p>
+            <div class="hud-item">
+                <button class="joker-btn" id="jokerBtn" onclick="useJoker()">
+                    👁️ Göz At (<span id="jokerCount">1</span>)
+                </button>
             </div>
         </div>
 
-        <div id="gameOverMenu" class="menu-overlay hidden">
-            <h1 class="game-over-title" id="gameOverTitle">OYUN BİTTİ</h1>
-            <div class="final-score" id="finalScore">0</div>
-            <p class="score-label">Skor</p>
-            <div class="new-record hidden" id="newRecord">🎉 YENİ REKOR! 🎉</div>
-            <div style="color: #ffd700; margin-bottom: 10px; font-size: 18px;" id="finalLevel">Seviye: 1</div>
-            <div id="rushResult" style="color: #00ff88; margin-bottom: 15px; display:none;"></div>
-            <button class="play-btn" onclick="startGame()">🔄 TEKRAR</button>
-            <div class="stats-row">
-                <div class="stat-item"><div class="stat-label">Yükseklik</div><div class="stat-value" id="finalHeight">0m</div></div>
-                <div class="stat-item"><div class="stat-label">Kombo</div><div class="stat-value" id="finalCombo">x1</div></div>
-                <div class="stat-item"><div class="stat-label">Seviye</div><div class="stat-value" id="finalLevelNum">1</div></div>
-            </div>
+        <!-- Theme Badge -->
+        <div class="theme-badge" id="themeBadge">Hayvanlar 🐯</div>
+
+        <!-- Game Board -->
+        <div class="game-board-wrapper">
+            <div class="game-board" id="gameBoard"></div>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <h2 class="modal-title">🎉 Tebrikler! 🎉</h2>
+            <div class="stars" id="starsDisplay"></div>
+            <p class="modal-subtitle" id="winMessage"></p>
+            <button class="btn-modal" onclick="nextLevel()">Sonraki Seviye ➡️</button>
+            <button class="btn-modal" onclick="restartLevel()">Tekrar Dene 🔄</button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">⏰ Süre Doldu! ⏰</h2>
+            <p class="modal-subtitle">Tekrar deneyin ve rekor kırın!</p>
+            <button class="btn-modal" onclick="restartLevel()">Tekrar Dene 🔄</button>
         </div>
     </div>
 
     <script>
-        // Gelişmiş Oyun Konfigürasyonu
-        const CONFIG = { 
-            GRAVITY: 0.55, 
-            BOUNCE: -17, 
-            SPRING: -25, 
-            MAX_FALL: 14, 
-            FIRE_BOOST: 1.5, 
-            RAGE_LAUNCH: -45, 
-            ACCEL: 0.7, 
-            MAX_SPEED: 7.5, 
-            FRICTION: 0.89, 
-            ICE_FRICTION: 0.99, 
-            PLAYER_SIZE: 28, 
-            START_Y: 520, 
-            PLAT_W: 82, 
-            PLAT_H: 15, 
-            PLAT_GAP: 62, 
-            PLAT_COUNT: 14, 
-            HEART_SPAWN: 0.025, 
-            POWERUP_SPAWN: 0.06, 
-            COIN_SPAWN: 0.12, 
-            CAM_LERP: 0.09, 
-            SCROLL_TH: 260, 
-            SQUASH: 0.25, 
-            STRETCH: 0.18, 
-            RAGE_MAX: 100, 
-            RAGE_PER_BOUNCE: 3, 
-            RAGE_DECAY: 0.5,
-            SLOW_TIME: 5000, // Zaman yavaşlatıcı süresi
-            RUSH_TIME: 120   // Rush modu süresi (saniye)
+        // ============================================
+        // GAME STATE & CONFIGURATION
+        // ============================================
+
+        const emojiThemes = {
+            animals: {
+                name: 'Hayvanlar 🐯',
+                emojis: ['🦁', '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦒', '🦓', '🦌', '🐮', '🐷', '🐸', '🐵', '🦆', '🦉', '🦅', '🦋', '🐝', '🐛', '🦗', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑']
+            },
+            food: {
+                name: 'Yiyecekler 🍕',
+                emojis: ['🍎', '🍌', '🍇', '🍓', '🍒', '🍑', '🍍', '🥝', '🍔', '🍕', '🌭', '🌮', '🍿', '🍩', '🍪', '🎂', '🍰', '🧁', '🍦', '🍧', '🍨', '🍭', '🍬', '🍫', '🥤', '🧃', '🍺', '🍷', '🥗', '🍝', '🍜', '🍱']
+            },
+            sports: {
+                name: 'Spor & Aktivite 🏀',
+                emojis: ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸', '🏒', '🏑', '🥊', '🥋', '🎯', '🎮', '🎲', '🎸', '🎹', '🎺', '🎻', '🥁', '🎨', '🖌️', '🎭', '🎪', '🎬', '🎤', '🎧', '🎼', '📷', '📸']
+            },
+            travel: {
+                name: 'Seyahat & Nesneler 🚀',
+                emojis: ['🚀', '🛸', '🚁', '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚈', '🚉', '🚊', '🚝', '🚞', '🚟', '🚠', '🚡', '🚢', '⛵', '🛥️', '🏰', '🗽', '🗿', '⛩️', '🕌', '⛪', '💎', '💍', '🔔', '🎁', '🎈', '🎀']
+            }
         };
-        
-        const SKINS = ['🔵','🟣','🟢','🟡','🔴','⚪','🌍','🌙','⭐','🎱','🍎','🎾','🏀','⚽','🎯'];
-        
-        // Seviye Sistemi
-        const LEVELS = [
-            {name: "BAŞLANGIÇ", height: 0, gravity: 0.55, platformGap: 62, enemySpawn: 0, movingSpeed: 1.0},
-            {name: "KOLAY", height: 30, gravity: 0.58, platformGap: 65, enemySpawn: 0.02, movingSpeed: 1.2},
-            {name: "ORTA", height: 70, gravity: 0.62, platformGap: 68, enemySpawn: 0.05, movingSpeed: 1.5},
-            {name: "ZOR", height: 120, gravity: 0.66, platformGap: 72, enemySpawn: 0.10, movingSpeed: 1.8},
-            {name: "ÇOK ZOR", height: 180, gravity: 0.70, platformGap: 75, enemySpawn: 0.15, movingSpeed: 2.2},
-            {name: "UZMAN", height: 250, gravity: 0.75, platformGap: 78, enemySpawn: 0.20, movingSpeed: 2.5},
-            {name: "EFSANE", height: 350, gravity: 0.80, platformGap: 80, enemySpawn: 0.25, movingSpeed: 3.0},
-            {name: "İMKANSIZ", height: 500, gravity: 0.85, platformGap: 85, enemySpawn: 0.30, movingSpeed: 3.5}
+
+        const gridConfigs = [
+            { rows: 4, cols: 4, pairs: 8, time: 0 },      // Levels 1-4 (No timer)
+            { rows: 4, cols: 6, pairs: 12, time: 240 },   // Levels 5-9
+            { rows: 6, cols: 6, pairs: 18, time: 300 },   // Levels 10-14
+            { rows: 6, cols: 8, pairs: 24, time: 360 },   // Levels 15-19
+            { rows: 8, cols: 8, pairs: 32, time: 420 }    // Level 20
         ];
-        
-        // Başarımlar
-        const ACHIEVEMENTS = [
-            {id:'h10',name:'Başlangıç',check:g=>g.maxH>=10},
-            {id:'c5',name:'Komboci',check:g=>g.maxC>=5},
-            {id:'h50',name:'Yükseliş',check:g=>g.maxH>=50},
-            {id:'c10',name:'Kombo Ustası',check:g=>g.maxC>=10},
-            {id:'h100',name:'Bulut Yürüyüşü',check:g=>g.maxH>=100},
-            {id:'s1k',name:'Puan Avcısı',check:g=>g.score>=1000},
-            {id:'c20',name:'Kombo Kralı',check:g=>g.maxC>=20},
-            {id:'h200',name:'Stratosfer',check:g=>g.maxH>=200},
-            {id:'rage',name:'Alev Topu!',check:g=>g.rageUsed>=1},
-            {id:'level5',name:'Zor Seviye',check:g=>g.level>=5},
-            {id:'level8',name:'İmkansızı Aş',check:g=>g.level>=8},
-            {id:'boss',name:'Boss Avcısı',check:g=>g.bossDefeated},
-            {id:'meteor',name:'Meteor Savunan',check:g=>g.meteorSurvived},
-            {id:'rush1k',name:'Hız Ustası',check:g=>g.rushScore>=1000}
-        ];
-        
-        // Oyun Durumu
-        const G = { 
-            canvas: null, ctx: null, w: 0, h: 0, state: 'menu', score: 0, maxH: 0, combo: 0, maxC: 0, 
-            lives: 3, maxLives: 5, skin: 0, camY: 0, targetCam: 0, shake: 0, lastT: 0, dt: 0, 
-            keys: {}, touchL: false, touchR: false, mobileLeft: false, mobileRight: false,
-            paused: false, 
-            best: parseInt(localStorage.getItem('skyB')||'0'), 
-            bestH: parseInt(localStorage.getItem('skyH')||'0'),
-            bestLevel: parseInt(localStorage.getItem('skyL')||'1'),
-            unlocked: JSON.parse(localStorage.getItem('skyA')||'[]'), 
-            floats: [], 
-            pTimers: {shield:0,magnet:0,double:0,speed:0,fire:0,shrink:0,ghost:0,slow:0}, 
-            rage: 0, rageReady: false, isRaging: false, rageUsed: 0,
-            level: 1, enemies: [], obstacles: [], levelChanged: false,
-            hardModeShown: false, extremeModeShown: false,
-            bossActive: false, bossHealth: 0, bossSpawned: false, bossDefeated: false,
-            meteorShower: false, meteors: [], meteorSurvived: false,
-            rushMode: false, rushTime: CONFIG.RUSH_TIME, rushTimer: 0, rushScore: 0,
-            scoreMultiplier: 1, multiplierTimer: 0, slowFactor: 1.0,
-            lastLogin: localStorage.getItem('skyLastLogin') || '',
-            loginStreak: parseInt(localStorage.getItem('skyLoginStreak') || '0'),
-            claimedToday: false,
-            startWithShield: false
+
+        let gameState = {
+            currentLevel: 1,
+            moves: 0,
+            matches: 0,
+            flippedCards: [],
+            lockBoard: false,
+            cards: [],
+            timer: null,
+            timeRemaining: 0,
+            jokerAvailable: true,
+            comboCount: 0,
+            startTime: null,
+            audioContext: null
         };
 
-        // Arka Plan Katmanları
-        class BgLayer { 
-            constructor(t,s,n){
-                this.t=t;this.s=s;this.items=[];
-                for(let i=0;i<n;i++) this.items.push({
-                    x:Math.random()*500,
-                    y:Math.random()*2000,
-                    sz:15+Math.random()*50,
-                    op:0.1+Math.random()*0.35,
-                    v:Math.floor(Math.random()*3)
-                });
-            } 
-            update(){
-                this.items.forEach(e=>{
-                    const sy=e.y-G.camY*this.s;
-                    if(sy>G.h+100){ e.y-=G.h*2.5; e.x=Math.random()*G.w; }
-                    if(sy<-150){ e.y+=G.h*2.5; e.x=Math.random()*G.w; }
-                });
-            } 
-            render(c){
-                this.items.forEach(e=>{
-                    const y=e.y-G.camY*this.s;
-                    c.globalAlpha=e.op;
-                    if(this.t==='cloud') this.drawCloud(c,e.x,y,e.sz);
-                    else if(this.t==='tree') this.drawTree(c,e.x,y,e.sz,e.v);
-                    else if(this.t==='star'){ 
-                        c.fillStyle='#fff'; 
-                        c.beginPath(); 
-                        c.arc(e.x,y,e.sz*0.04,0,Math.PI*2); 
-                        c.fill();
-                    } else if(this.t==='mtn') this.drawMtn(c,e.x,y,e.sz,e.v);
-                });
-                c.globalAlpha=1;
-            } 
-            drawCloud(c,x,y,s){
-                c.fillStyle='#fff';
-                c.beginPath();
-                c.arc(x,y,s*0.35,0,Math.PI*2);
-                c.arc(x+s*0.4,y-s*0.08,s*0.3,0,Math.PI*2);
-                c.arc(x+s*0.75,y,s*0.25,0,Math.PI*2);
-                c.fill();
-            } 
-            drawTree(c,x,y,s,v){
-                const cols=['#1a4f3d','#0d3627','#2d5a4a'];
-                c.fillStyle=cols[v%3];
-                c.beginPath();
-                c.moveTo(x,y);
-                c.lineTo(x-s*0.4,y+s);
-                c.lineTo(x-s*0.12,y+s*0.65);
-                c.lineTo(x-s*0.45,y+s*1.4);
-                c.lineTo(x-s*0.08,y+s*1.1);
-                c.lineTo(x-s*0.5,y+s*1.85);
-                c.lineTo(x+s*0.5,y+s*1.85);
-                c.lineTo(x+s*0.08,y+s*1.1);
-                c.lineTo(x+s*0.45,y+s*1.4);
-                c.lineTo(x+s*0.12,y+s*0.65);
-                c.lineTo(x+s*0.4,y+s);
-                c.closePath();
-                c.fill();
-            } 
-            drawMtn(c,x,y,s,v){
-                const cols=['#1e3a5f','#2a4a6f','#1a2a4f'];
-                c.fillStyle=cols[v%3];
-                c.beginPath();
-                c.moveTo(x-s,y+s*0.8);
-                c.lineTo(x,y-s*0.5);
-                c.lineTo(x+s,y+s*0.8);
-                c.closePath();
-                c.fill();
-                c.fillStyle='rgba(255,255,255,0.3)';
-                c.beginPath();
-                c.moveTo(x-s*0.12,y-s*0.15);
-                c.lineTo(x,y-s*0.5);
-                c.lineTo(x+s*0.12,y-s*0.15);
-                c.closePath();
-                c.fill();
-            } 
-        };
-        
-        const bg = { 
-            layers: [], 
-            init(){
-                this.layers=[
-                    new BgLayer('star',0.05,60),
-                    new BgLayer('mtn',0.12,6),
-                    new BgLayer('cloud',0.18,10),
-                    new BgLayer('tree',0.28,15),
-                    new BgLayer('cloud',0.4,7)
-                ];
-            }, 
-            update(){
-                this.layers.forEach(l=>l.update());
-            }, 
-            render(c){
-                const level = Math.min(G.level-1, LEVELS.length-1);
-                const gr=c.createLinearGradient(0,0,0,G.h);
-                if(level < 2){
-                    gr.addColorStop(0,'#5a9fd4');
-                    gr.addColorStop(0.5,'#87ceeb');
-                    gr.addColorStop(1,'#b8e8f0');
-                } else if(level < 4){
-                    gr.addColorStop(0,'#3d5a80');
-                    gr.addColorStop(0.5,'#6b8cae');
-                    gr.addColorStop(1,'#98c1d9');
-                } else if(level < 6){
-                    gr.addColorStop(0,'#1d3557');
-                    gr.addColorStop(0.5,'#457b9d');
-                    gr.addColorStop(1,'#a8dadc');
-                } else {
-                    gr.addColorStop(0,'#0d1b2a');
-                    gr.addColorStop(0.5,'#1b263b');
-                    gr.addColorStop(1,'#415a77');
-                }
-                c.fillStyle=gr;
-                c.fillRect(0,0,G.w,G.h);
-                this.layers.forEach(l=>l.render(c));
-            } 
-        };
+        // ============================================
+        // AUDIO SYSTEM (Web Audio API)
+        // ============================================
 
-        // Oyuncu
-        const P = { 
-            x: 0, y: 0, vx: 0, vy: 0, w: CONFIG.PLAYER_SIZE, h: CONFIG.PLAYER_SIZE, 
-            sq: 1, st: 1, trail: [], canDbl: false, onIce: false, 
-            reset(){
-                this.x=G.w/2-this.w/2;
-                this.y=CONFIG.START_Y;
-                this.vx=0;
-                this.vy=0;
-                this.sq=1;
-                this.st=1;
-                this.trail=[];
-                this.canDbl=false;
-                this.onIce=false;
-            }, 
-            update(dt){
-                const level = Math.min(G.level-1, LEVELS.length-1);
-                const gravity = LEVELS[level].gravity || CONFIG.GRAVITY;
-                
-                this.vy+=gravity*dt*60*G.slowFactor;
-                if(this.vy>CONFIG.MAX_FALL) this.vy=CONFIG.MAX_FALL;
-                
-                let spd=CONFIG.MAX_SPEED;
-                if(G.pTimers.speed>0) spd*=1.4;
-                
-                const l=G.keys['ArrowLeft']||G.keys['a']||G.keys['A']||G.touchL||G.mobileLeft;
-                const r=G.keys['ArrowRight']||G.keys['d']||G.keys['D']||G.touchR||G.mobileRight;
-                let tgt=0;
-                if(l) tgt=-spd;
-                if(r) tgt=spd;
-                
-                const fric=this.onIce?CONFIG.ICE_FRICTION:CONFIG.FRICTION;
-                if(tgt!==0) this.vx+=(tgt-this.vx)*CONFIG.ACCEL*dt*60*G.slowFactor;
-                else this.vx*=Math.pow(fric,dt*60*G.slowFactor);
-                
-                if(Math.abs(this.vx)<0.08) this.vx=0;
-                this.vx=Math.max(-spd,Math.min(spd,this.vx));
-                
-                this.x+=this.vx*dt*60*G.slowFactor;
-                this.y+=this.vy*dt*60*G.slowFactor;
-                
-                if(this.x<-this.w) this.x=G.w;
-                if(this.x>G.w) this.x=-this.w;
-                
-                if(this.vy<-4){
-                    this.st=1+Math.min(Math.abs(this.vy)*0.018,CONFIG.STRETCH);
-                    this.sq=1/this.st;
-                } else if(this.vy>4){
-                    this.sq=1+Math.min(this.vy*0.014,CONFIG.SQUASH);
-                    this.st=1/this.sq;
-                } else {
-                    this.sq+=(1-this.sq)*0.15;
-                    this.st+=(1-this.st)*0.15;
-                }
-                
-                if(Math.abs(this.vx)>2.5||Math.abs(this.vy)>4){
-                    this.trail.push({x:this.x+this.w/2,y:this.y+this.h/2,a:0.4,s:this.w*0.7});
-                }
-                
-                this.trail=this.trail.filter(t=>{
-                    t.a-=0.04;
-                    t.s*=0.93;
-                    return t.a>0;
-                });
-                
-                this.onIce=false;
-                
-                if(this.y-G.camY>G.h+60) loseLife();
-            }, 
-            bounce(force=CONFIG.BOUNCE){
-                let cb=1;
-                if(G.combo>=25) cb=1.4;
-                else if(G.combo>=15) cb=1.25;
-                else if(G.combo>=8) cb=1.15;
-                else if(G.combo>=4) cb=1.08;
-                
-                if(G.pTimers.fire>0) cb*=CONFIG.FIRE_BOOST;
-                if(G.isRaging){ cb=1; force=CONFIG.RAGE_LAUNCH; G.isRaging=false; }
-                
-                this.vy=force*cb;
-                this.sq=1.35;
-                this.st=0.72;
-                
-                if(G.pTimers.double>0) P.canDbl=true;
-                
-                playSound('bounce');
-                const col=G.pTimers.fire>0||force===CONFIG.RAGE_LAUNCH?'#ff4500':'#fff';
-                createParts(this.x+this.w/2,this.y+this.h,force===CONFIG.RAGE_LAUNCH?15:6,col);
-                
-                const rageAdd=CONFIG.RAGE_PER_BOUNCE*(1+G.combo*0.1);
-                G.rage=Math.min(CONFIG.RAGE_MAX,G.rage+rageAdd);
-                updateRageBar();
-                
-                // Skor çarpanı güncelle
-                updateMultiplier();
-            }, 
-            render(c){
-                const sy=this.y-G.camY;
-                
-                this.trail.forEach(t=>{
-                    c.globalAlpha=t.a*0.4;
-                    c.font=`${t.s}px Arial`;
-                    c.textAlign='center';
-                    c.textBaseline='middle';
-                    c.fillText(SKINS[G.skin],t.x,t.y-G.camY);
-                });
-                c.globalAlpha=1;
-                
-                c.save();
-                c.translate(this.x+this.w/2,sy+this.h/2);
-                c.scale(this.sq,this.st);
-                c.shadowBlur=G.isRaging?40:20;
-                c.shadowColor=G.pTimers.shield>0?'#00ff88':G.isRaging?'#ff4500':'#6366f1';
-                c.font=`${this.w}px Arial`;
-                c.textAlign='center';
-                c.textBaseline='middle';
-                c.fillText(SKINS[G.skin],0,0);
-                
-                if(G.pTimers.shield>0){
-                    c.strokeStyle='rgba(0,255,136,0.5)';
-                    c.lineWidth=3;
-                    c.beginPath();
-                    c.arc(0,0,this.w*0.65,0,Math.PI*2);
-                    c.stroke();
-                }
-                
-                c.restore();
-            } 
-        };
+        function initAudio() {
+            if (!gameState.audioContext) {
+                gameState.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
 
-        // Platformlar
-        const platforms = [];
-        class Platform { 
-            constructor(x,y,type='normal'){
-                const shrink=Math.max(0.65,1-Math.floor(G.maxH/400)*0.04);
-                this.x=x;
-                this.y=y;
-                this.w=CONFIG.PLAT_W*shrink;
-                this.h=CONFIG.PLAT_H;
-                this.type=type;
-                this.broken=false;
-                this.dir=Math.random()>0.5?1:-1;
-                
-                const level = Math.min(G.level-1, LEVELS.length-1);
-                const movingSpeed = LEVELS[level].movingSpeed || 1.2;
-                this.spd=movingSpeed + Math.random()*0.8;
-                
-                this.wobble=0;
-                this.timer=0;
-                this.teleportCooldown=0;
-            } 
-            update(dt){
-                if(this.type==='moving'&&!this.broken){
-                    this.x+=this.spd*this.dir*dt*60*G.slowFactor;
-                    if(this.x<5||this.x+this.w>G.w-5) this.dir*=-1;
-                }
-                
-                if(this.type==='crumbling'&&this.timer>0){
-                    this.timer-=dt*1000;
-                    this.wobble=Math.sin(Date.now()*0.06)*3;
-                    if(this.timer<=0){
-                        this.broken=true;
-                        G.shake=5;
-                        createParts(this.x+this.w/2,this.y,10,'#a78bfa');
-                    }
-                }
-                
-                if(this.teleportCooldown>0) this.teleportCooldown-=dt*1000;
-            } 
-            render(c){
-                if(this.broken) return;
-                const y=this.y-G.camY+this.wobble;
-                
-                c.save();
-                
-                c.fillStyle='rgba(0,0,0,0.15)';
-                c.beginPath();
-                c.ellipse(this.x+this.w/2,y+this.h+4,this.w/2-6,5,0,0,Math.PI*2);
-                c.fill();
-                
-                const colors={
-                    normal:['#4ade80','#22c55e'],
-                    spring:['#f472b6','#ec4899'],
-                    moving:['#60a5fa','#3b82f6'],
-                    crumbling:['#c4b5fd','#a78bfa'],
-                    ice:['#67e8f9','#22d3ee'],
-                    trampolin:['#fbbf24','#f59e0b'],
-                    teleport:['#c084fc','#a855f7'],
-                    spiky:['#ef4444','#dc2626']
-                };
-                const col=colors[this.type]||colors.normal;
-                const gr=c.createLinearGradient(0,y,0,y+this.h);
-                gr.addColorStop(0,col[0]);
-                gr.addColorStop(1,col[1]);
-                c.fillStyle=gr;
-                c.shadowBlur=12;
-                c.shadowColor=col[1];
-                
-                const r=this.h/2;
-                c.beginPath();
-                c.moveTo(this.x+r,y);
-                c.lineTo(this.x+this.w-r,y);
-                c.arc(this.x+this.w-r,y+r,r,-Math.PI/2,Math.PI/2);
-                c.lineTo(this.x+r,y+this.h);
-                c.arc(this.x+r,y+r,r,Math.PI/2,-Math.PI/2);
-                c.closePath();
-                c.fill();
-                
-                if(this.type==='normal'){
-                    c.fillStyle='#16a34a';
-                    for(let i=0;i<4;i++){
-                        const gx=this.x+8+i*(this.w-16)/4;
-                        c.beginPath();
-                        c.moveTo(gx,y);
-                        c.lineTo(gx-2,y-5);
-                        c.lineTo(gx+2,y-5);
-                        c.closePath();
-                        c.fill();
-                    }
-                }
-                
-                if(this.type==='spring'||this.type==='trampolin'){
-                    c.strokeStyle='rgba(255,255,255,0.7)';
-                    c.lineWidth=2;
-                    c.beginPath();
-                    for(let i=0;i<3;i++){
-                        const sx=this.x+this.w/2-12+i*12;
-                        c.moveTo(sx,y+3);
-                        c.lineTo(sx,y+this.h-3);
-                    }
-                    c.stroke();
-                }
-                
-                if(this.type==='ice'){
-                    c.fillStyle='rgba(255,255,255,0.4)';
-                    c.fillRect(this.x+10,y+2,this.w-20,3);
-                }
-                
-                if(this.type==='teleport'){
-                    c.fillStyle='rgba(255,255,255,0.6)';
-                    c.font='10px Arial';
-                    c.textAlign='center';
-                    c.fillText('⟳',this.x+this.w/2,y+this.h/2+3);
-                }
-                
-                if(this.type==='spiky'){
-                    c.fillStyle='rgba(255,255,255,0.8)';
-                    const spikeCount = Math.floor(this.w / 15);
-                    for(let i=0; i<spikeCount; i++){
-                        const sx = this.x + 8 + i*(this.w-16)/spikeCount;
-                        c.beginPath();
-                        c.moveTo(sx, y);
-                        c.lineTo(sx-4, y-8);
-                        c.lineTo(sx+4, y-8);
-                        c.closePath();
-                        c.fill();
-                    }
-                }
-                
-                c.restore();
-            } 
-            startCrumble(){
-                if(this.type==='crumbling'&&this.timer===0) this.timer=450;
-            } 
-        };
-        
-        // Dönen Bıçak Engel
-        class SpinningBlade {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.radius = 25;
-                this.angle = 0;
-                this.speed = 0.05 + Math.random() * 0.03;
-                this.damage = 1;
-            }
-            
-            update(dt) {
-                this.angle += this.speed * dt * 60 * G.slowFactor;
-            }
-            
-            render(c) {
-                const y = this.y - G.camY;
-                c.save();
-                c.translate(this.x, y);
-                c.rotate(this.angle);
-                
-                c.fillStyle = '#dc2626';
-                c.beginPath();
-                c.moveTo(0, -this.radius);
-                c.lineTo(this.radius * 0.7, 0);
-                c.lineTo(0, this.radius);
-                c.lineTo(-this.radius * 0.7, 0);
-                c.closePath();
-                c.fill();
-                
-                c.fillStyle = '#450a0a';
-                c.beginPath();
-                c.arc(0, 0, this.radius * 0.3, 0, Math.PI * 2);
-                c.fill();
-                
-                c.restore();
-            }
-            
-            checkCollision(player) {
-                const dx = (player.x + player.w/2) - this.x;
-                const dy = (player.y + player.h/2) - (this.y - G.camY + G.camY);
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                return distance < (this.radius + player.w/2);
-            }
-        };
-        
-        // Uçan Düşman
-        class FlyingEnemy {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.width = 30;
-                this.height = 30;
-                this.vx = (Math.random() - 0.5) * 3;
-                this.vy = 0;
-                this.amplitude = 50 + Math.random() * 50;
-                this.speed = 0.03 + Math.random() * 0.02;
-                this.time = Math.random() * Math.PI * 2;
-                this.startY = y;
-                this.damage = 1;
-            }
-            
-            update(dt) {
-                this.time += this.speed * dt * 60 * G.slowFactor;
-                this.y = this.startY + Math.sin(this.time) * this.amplitude;
-                
-                this.x += this.vx * dt * 60 * G.slowFactor;
-                if (this.x < 0 || this.x > G.w) this.vx *= -1;
-            }
-            
-            render(c) {
-                const y = this.y - G.camY;
-                
-                c.save();
-                c.fillStyle = '#dc2626';
-                c.beginPath();
-                c.arc(this.x, y, this.width/2, 0, Math.PI * 2);
-                c.fill();
-                
-                c.fillStyle = '#ffffff';
-                c.beginPath();
-                c.arc(this.x - 8, y - 5, 4, 0, Math.PI * 2);
-                c.arc(this.x + 8, y - 5, 4, 0, Math.PI * 2);
-                c.fill();
-                
-                c.fillStyle = '#000000';
-                c.beginPath();
-                c.arc(this.x - 8, y - 5, 2, 0, Math.PI * 2);
-                c.arc(this.x + 8, y - 5, 2, 0, Math.PI * 2);
-                c.fill();
-                
-                c.strokeStyle = '#000000';
-                c.lineWidth = 2;
-                c.beginPath();
-                c.arc(this.x, y + 5, 6, 0.2, Math.PI - 0.2);
-                c.stroke();
-                
-                c.restore();
-            }
-            
-            checkCollision(player) {
-                const dx = (player.x + player.w/2) - this.x;
-                const dy = (player.y + player.h/2) - (this.y - G.camY + G.camY);
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                return distance < (this.width/2 + player.w/2);
-            }
-        };
-        
-        // Ateş Topu Engel
-        class Fireball {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.radius = 20;
-                this.vx = (Math.random() - 0.5) * 4;
-                this.vy = -3 - Math.random() * 2;
-                this.pulse = 0;
-            }
-            
-            update(dt) {
-                this.x += this.vx * dt * 60 * G.slowFactor;
-                this.y += this.vy * dt * 60 * G.slowFactor;
-                this.vy += 0.1 * dt * 60 * G.slowFactor;
-                this.pulse += 0.1 * dt * 60 * G.slowFactor;
-                
-                if(this.x < this.radius || this.x > G.w - this.radius) {
-                    this.vx *= -1;
-                }
-            }
-            
-            render(c) {
-                const y = this.y - G.camY;
-                const pulseSize = this.radius * (1 + 0.2 * Math.sin(this.pulse));
-                
-                c.save();
-                
-                const gr = c.createRadialGradient(
-                    this.x, y, 0,
-                    this.x, y, pulseSize
-                );
-                gr.addColorStop(0, '#ffaa00');
-                gr.addColorStop(0.7, '#ff6b00');
-                gr.addColorStop(1, '#ff4500');
-                
-                c.fillStyle = gr;
-                c.beginPath();
-                c.arc(this.x, y, pulseSize, 0, Math.PI * 2);
-                c.fill();
-                
-                c.restore();
-            }
-            
-            checkCollision(player) {
-                const dx = (player.x + player.w/2) - this.x;
-                const dy = (player.y + player.h/2) - (this.y - G.camY + G.camY);
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                return distance < (this.radius + player.w/2);
-            }
-        };
-        
-        // Boss Sınıfı
-        class Boss {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.width = 100;
-                this.height = 100;
-                this.vx = 2;
-                this.vy = 0;
-                this.health = 10;
-                this.maxHealth = 10;
-                this.attackTimer = 0;
-                this.pattern = 0;
-                this.projectiles = [];
-                this.angle = 0;
-            }
-            
-            update(dt) {
-                this.x += this.vx * dt * 60 * G.slowFactor;
-                if(this.x < 50 || this.x > G.w - 50) {
-                    this.vx *= -1;
-                }
-                
-                this.attackTimer -= dt * 1000;
-                if(this.attackTimer <= 0) {
-                    this.attack();
-                    this.attackTimer = 2000;
-                }
-                
-                this.angle += 0.02 * dt * 60 * G.slowFactor;
-                
-                // Mermileri güncelle
-                for(let i = this.projectiles.length - 1; i >= 0; i--) {
-                    const p = this.projectiles[i];
-                    p.x += p.vx * dt * 60 * G.slowFactor;
-                    p.y += p.vy * dt * 60 * G.slowFactor;
-                    
-                    if(p.x < -20 || p.x > G.w + 20 || p.y < -20 || p.y > G.h + 20) {
-                        this.projectiles.splice(i, 1);
-                    }
-                    
-                    // Oyuncu ile çarpışma kontrolü
-                    if(Math.abs(P.x + P.w/2 - p.x) < 15 + P.w/2 &&
-                       Math.abs(P.y + P.h/2 - (p.y - G.camY + G.camY)) < 15 + P.h/2) {
-                        if(G.pTimers.shield > 0) {
-                            G.pTimers.shield = 0;
-                            updatePuBar();
-                            addFloat(p.x, p.y + G.camY, 'KALKAN KIRILDI!', '#ff0000');
-                        } else {
-                            loseLife();
-                        }
-                        this.projectiles.splice(i, 1);
-                        createParts(p.x, p.y + G.camY, 10, '#ff0000');
-                    }
-                }
-            }
-            
-            attack() {
-                // Farklı saldırı desenleri
-                if(this.pattern === 0) {
-                    // Dairesel ateş
-                    for(let i = 0; i < 8; i++) {
-                        const angle = (i * Math.PI * 2) / 8;
-                        this.projectiles.push({
-                            x: this.x,
-                            y: this.y + G.camY,
-                            vx: Math.cos(angle) * 3,
-                            vy: Math.sin(angle) * 3,
-                            width: 15,
-                            height: 15
-                        });
-                    }
-                } else {
-                    // Oyuncuya doğru ateş
-                    const dx = (P.x + P.w/2) - this.x;
-                    const dy = (P.y + P.h/2) - (this.y + G.camY);
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    this.projectiles.push({
-                        x: this.x,
-                        y: this.y + G.camY,
-                        vx: (dx / dist) * 4,
-                        vy: (dy / dist) * 4,
-                        width: 15,
-                        height: 15
-                    });
-                }
-                
-                this.pattern = (this.pattern + 1) % 2;
-                playSound('spring');
-            }
-            
-            render(c) {
-                const y = this.y - G.camY;
-                c.save();
-                
-                // Boss gövdesi
-                c.fillStyle = '#dc2626';
-                c.beginPath();
-                c.arc(this.x, y, 50, 0, Math.PI * 2);
-                c.fill();
-                
-                // Gözler
-                c.fillStyle = '#ffffff';
-                c.beginPath();
-                c.arc(this.x - 20, y - 10, 10, 0, Math.PI * 2);
-                c.arc(this.x + 20, y - 10, 10, 0, Math.PI * 2);
-                c.fill();
-                
-                c.fillStyle = '#000000';
-                c.beginPath();
-                c.arc(this.x - 20, y - 10, 5, 0, Math.PI * 2);
-                c.arc(this.x + 20, y - 10, 5, 0, Math.PI * 2);
-                c.fill();
-                
-                // Ağız
-                c.strokeStyle = '#000000';
-                c.lineWidth = 4;
-                c.beginPath();
-                c.arc(this.x, y + 15, 25, 0.2, Math.PI - 0.2);
-                c.stroke();
-                
-                // Can barı
-                c.fillStyle = '#444';
-                c.fillRect(this.x - 60, y - 80, 120, 10);
-                c.fillStyle = this.health > 5 ? '#22c55e' : (this.health > 2 ? '#fbbf24' : '#ef4444');
-                c.fillRect(this.x - 60, y - 80, 120 * (this.health / this.maxHealth), 10);
-                
-                // Mermileri çiz
-                c.fillStyle = '#ff0000';
-                this.projectiles.forEach(p => {
-                    const py = p.y - G.camY;
-                    c.beginPath();
-                    c.arc(p.x, py, 8, 0, Math.PI * 2);
-                    c.fill();
-                });
-                
-                c.restore();
-            }
-            
-            checkCollision(player) {
-                const dx = (player.x + player.w/2) - this.x;
-                const dy = (player.y + player.h/2) - (this.y - G.camY + G.camY);
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                return distance < (50 + player.w/2);
-            }
-            
-            takeDamage() {
-                this.health--;
-                createParts(this.x, this.y + G.camY, 10, '#ffd700');
-                
-                if(this.health <= 0) {
-                    G.bossActive = false;
-                    G.bossDefeated = true;
-                    addFloat(this.x, this.y + G.camY, '🎉 BOSS YENİLDİ! 🎉', '#ffd700');
-                    G.score += 1000;
-                    createParts(this.x, this.y + G.camY, 30, '#ffd700');
-                    G.shake = 15;
-                    checkAchieve();
-                }
-            }
-        };
-        
-        // Meteor
-        class Meteor {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.vx = (Math.random() - 0.5) * 4;
-                this.vy = 8 + Math.random() * 4;
-                this.size = 20 + Math.random() * 20;
-                this.trail = [];
-            }
-            
-            update(dt) {
-                this.x += this.vx * dt * 60 * G.slowFactor;
-                this.y += this.vy * dt * 60 * G.slowFactor;
-                
-                this.trail.push({x: this.x, y: this.y});
-                if(this.trail.length > 10) this.trail.shift();
-            }
-            
-            render(c) {
-                const y = this.y - G.camY;
-                
-                this.trail.forEach((t, idx) => {
-                    const ty = t.y - G.camY;
-                    c.globalAlpha = idx / this.trail.length * 0.5;
-                    c.fillStyle = '#ff6b00';
-                    c.beginPath();
-                    c.arc(t.x, ty, this.size * (idx / this.trail.length), 0, Math.PI * 2);
-                    c.fill();
-                });
-                c.globalAlpha = 1;
-                
-                const gr = c.createRadialGradient(this.x, y, 0, this.x, y, this.size);
-                gr.addColorStop(0, '#ffaa00');
-                gr.addColorStop(1, '#ff4500');
-                
-                c.fillStyle = gr;
-                c.beginPath();
-                c.arc(this.x, y, this.size, 0, Math.PI * 2);
-                c.fill();
-            }
-            
-            checkCollision(player) {
-                const dx = (player.x + player.w/2) - this.x;
-                const dy = (player.y + player.h/2) - (this.y - G.camY + G.camY);
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                return distance < (this.size + player.w/2);
-            }
-        };
-        
-        // Platform oluşturma
-        function genPlats(){
-            platforms.length=0;
-            const sx=G.w/2-CONFIG.PLAT_W/2;
-            platforms.push(new Platform(sx,CONFIG.START_Y+45,'normal'));
-            
-            let lastX=sx,lastY=CONFIG.START_Y+45;
-            for(let i=1;i<CONFIG.PLAT_COUNT;i++){
-                const gap=CONFIG.PLAT_GAP;
-                const y=lastY-gap;
-                const maxJ=140;
-                const minX=Math.max(8,lastX-maxJ);
-                const maxX=Math.min(G.w-CONFIG.PLAT_W-8,lastX+maxJ);
-                const x=minX+Math.random()*(maxX-minX);
-                
-                let type='normal';
-                const r=Math.random();
-                
-                const level = Math.min(G.level-1, LEVELS.length-1);
-                const enemySpawn = LEVELS[level].enemySpawn || 0;
-                
-                if(i>3){
-                    if(r<0.08) type='spring';
-                    else if(r<0.16) type='moving';
-                    else if(r<0.24) type='crumbling';
-                    else if(r<0.30) type='ice';
-                    else if(r<0.34) type='trampolin';
-                    else if(r<0.37) type='teleport';
-                    else if(r<0.40 + enemySpawn) type='spiky';
-                }
-                
-                platforms.push(new Platform(x,y,type));
-                lastX=x;
-                lastY=y;
-            }
-        };
-        
-        // Platform güncelleme
-        function updatePlats(dt){
-            platforms.forEach(p=>p.update(dt));
-            
-            const highest=platforms.reduce((m,p)=>p.y<m?p.y:m,Infinity);
-            
-            if(highest>G.camY-G.h){
-                const ref=platforms.find(p=>p.y===highest);
-                const refX=ref?ref.x:G.w/2;
-                
-                const level = Math.min(G.level-1, LEVELS.length-1);
-                const platformGap = LEVELS[level].platformGap || CONFIG.PLAT_GAP;
-                const enemySpawn = LEVELS[level].enemySpawn || 0;
-                let maxJ=140 - (level * 10);
-                if(maxJ < 80) maxJ = 80;
-                
-                const minX=Math.max(8,refX-maxJ);
-                const maxX=Math.min(G.w-CONFIG.PLAT_W-8,refX+maxJ);
-                const x=minX+Math.random()*(maxX-minX);
-                
-                const y=highest-platformGap;
-                
-                let type='normal';
-                const r=Math.random();
-                
-                let df=Math.min(G.maxH*0.001,0.25);
-                if(level >= 2) df+=0.15;
-                if(level >= 4) df+=0.25;
-                
-                if(r<0.08+df) type='spring';
-                else if(r<0.16+df*1.5) type='moving';
-                else if(r<0.28+df*2) type='crumbling';
-                else if(r<0.35+df) type='ice';
-                else if(r<0.40+df) type='trampolin';
-                else if(r<0.45+df) type='teleport';
-                else if(r<0.50+df + enemySpawn) type='spiky';
-                
-                const newP=new Platform(x,y,type);
-                
-                const movingSpeed = LEVELS[level].movingSpeed || 1.2;
-                if(type==='moving') newP.spd*=movingSpeed;
-                
-                platforms.push(newP);
-                
-                // Düşman spawn etme
-                if(level >= 2 && Math.random() < enemySpawn * 0.5) {
-                    const enemyType = Math.random();
-                    if(enemyType < 0.33) {
-                        G.enemies.push(new SpinningBlade(x + newP.w/2, y - 50));
-                    } else if(enemyType < 0.66) {
-                        G.enemies.push(new FlyingEnemy(x + newP.w/2, y - 100));
-                    } else {
-                        G.enemies.push(new Fireball(x + newP.w/2, y - 80));
-                    }
-                }
-                
-                // Boss spawn etme
-                if(!G.rushMode && G.maxH >= 200 && !G.bossSpawned && !G.bossActive && Math.random() < 0.01) {
-                    G.bossActive = true;
-                    G.bossSpawned = true;
-                    G.boss = new Boss(G.w/2, G.camY - 150);
-                    addFloat(G.w/2, G.camY + 150, '💀 BOSS GELDİ! 💀', '#ff0000');
-                }
-                
-                // Meteor yağmuru
-                if(!G.rushMode && G.maxH >= 300 && !G.meteorShower && Math.random() < 0.005) {
-                    G.meteorShower = true;
-                    G.meteorSurvived = false;
-                    addFloat(G.w/2, G.camY + 150, '☄️ METEOR YAĞMURU! ☄️', '#ff6b00');
-                    
-                    // 10 meteor spawn et
-                    for(let i = 0; i < 10; i++) {
-                        setTimeout(() => {
-                            G.meteors.push(new Meteor(Math.random() * G.w, G.camY - 100));
-                        }, i * 500);
-                    }
-                    
-                    // 15 saniye sonra bitir
-                    setTimeout(() => {
-                        G.meteorShower = false;
-                        G.meteorSurvived = true;
-                        addFloat(G.w/2, G.camY + 150, '🎉 METEORLAR BİTTİ! 🎉', '#00ff88');
-                        checkAchieve();
-                    }, 15000);
-                }
-                
-                spawnColls(newP);
-                
-                checkLevelUp();
-            }
-            
-            for(let i=platforms.length-1;i>=0;i--){
-                if(platforms[i].y-G.camY>G.h+150){
-                    platforms.splice(i,1);
-                }
-            }
-        };
-        
-        // Düşmanları güncelle
-        function updateEnemies(dt) {
-            for(let i = G.enemies.length - 1; i >= 0; i--) {
-                const enemy = G.enemies[i];
-                enemy.update(dt);
-                
-                if(enemy.checkCollision(P)) {
-                    if(G.pTimers.shield > 0) {
-                        G.pTimers.shield = 0;
-                        updatePuBar();
-                        createParts(enemy.x, enemy.y + G.camY, 10, '#ff0000');
-                        addFloat(enemy.x, enemy.y + G.camY, 'KALKAN KIRILDI!', '#ff0000');
-                        G.enemies.splice(i, 1);
-                        continue;
-                    }
-                    
-                    loseLife();
-                    createParts(enemy.x, enemy.y + G.camY, 10, '#ff0000');
-                    G.enemies.splice(i, 1);
-                }
-                
-                if(enemy.y - G.camY > G.h + 100 || enemy.y - G.camY < -100) {
-                    G.enemies.splice(i, 1);
-                }
-            }
-        };
-        
-        // Boss güncelle
-        function updateBoss(dt) {
-            if(!G.bossActive || !G.boss) return;
-            
-            G.boss.update(dt);
-            
-            // Boss ile çarpışma
-            if(G.boss.checkCollision(P)) {
-                if(G.pTimers.shield > 0) {
-                    G.pTimers.shield = 0;
-                    updatePuBar();
-                    addFloat(G.boss.x, G.boss.y + G.camY, 'KALKAN KIRILDI!', '#ff0000');
-                } else {
-                    loseLife();
-                }
-            }
-            
-            // Boss'a ateşli güçle hasar verme
-            if(G.pTimers.fire > 0 && G.boss.checkCollision(P)) {
-                G.boss.takeDamage();
-            }
-        };
-        
-        // Meteorları güncelle
-        function updateMeteors(dt) {
-            for(let i = G.meteors.length - 1; i >= 0; i--) {
-                const m = G.meteors[i];
-                m.update(dt);
-                
-                if(m.checkCollision(P)) {
-                    if(G.pTimers.shield > 0) {
-                        G.pTimers.shield = 0;
-                        updatePuBar();
-                        addFloat(m.x, m.y + G.camY, 'KALKAN KIRILDI!', '#ff0000');
-                    } else {
-                        loseLife();
-                    }
-                    createParts(m.x, m.y + G.camY, 15, '#ff6b00');
-                    G.meteors.splice(i, 1);
-                    continue;
-                }
-                
-                if(m.y - G.camY > G.h + 100) {
-                    G.meteors.splice(i, 1);
-                }
-            }
-        };
-        
-        // Düşmanları çiz
-        function renderEnemies(c) {
-            G.enemies.forEach(enemy => {
-                enemy.render(c);
-            });
-        };
-        
-        // Boss çiz
-        function renderBoss(c) {
-            if(!G.bossActive || !G.boss) return;
-            G.boss.render(c);
-        };
-        
-        // Meteorları çiz
-        function renderMeteors(c) {
-            G.meteors.forEach(m => {
-                m.render(c);
-            });
-        };
-        
-        // Seviye kontrolü
-        function checkLevelUp() {
-            const newLevel = getCurrentLevel();
-            if(newLevel !== G.level) {
-                G.level = newLevel;
-                G.levelChanged = true;
-                
-                const levelIndicator = document.getElementById('levelIndicator');
-                const levelName = document.getElementById('levelName');
-                levelName.textContent = LEVELS[G.level-1].name;
-                levelIndicator.classList.add('show');
-                
-                G.shake = 10;
-                createParts(G.w/2, G.camY + 100, 20, '#ffd700');
-                addFloat(G.w/2, G.camY + 150, `SEVİYE ${G.level}: ${LEVELS[G.level-1].name}`, '#ffd700');
-                
-                setTimeout(() => {
-                    levelIndicator.classList.remove('show');
-                }, 3000);
-                
-                checkAchieve();
-            }
-        };
-        
-        // Mevcut seviyeyi hesapla
-        function getCurrentLevel() {
-            for(let i = LEVELS.length - 1; i >= 0; i--) {
-                if(G.maxH >= LEVELS[i].height) {
-                    return i + 1;
-                }
-            }
-            return 1;
-        };
-        
-        // Toplanabilir objeler
-        const colls = [];
-        class Coll { 
-            constructor(x,y,type){
-                this.x=x;
-                this.y=y;
-                this.type=type;
-                this.got=false;
-                this.sz=24;
-                this.bob=Math.random()*Math.PI*2;
-            } 
-            update(){
-                if(G.pTimers.magnet>0&&!this.got){
-                    const dx=(P.x+P.w/2)-this.x,dy=(P.y+P.h/2)-this.y;
-                    const d=Math.sqrt(dx*dx+dy*dy);
-                    if(d<130){
-                        this.x+=dx*0.12;
-                        this.y+=dy*0.12;
-                    }
-                }
-            } 
-            render(c){
-                if(this.got) return;
-                const bob=Math.sin(Date.now()*0.004+this.bob)*4;
-                const y=this.y-G.camY+bob;
-                
-                c.save();
-                c.shadowBlur=12;
-                
-                const icons={
-                    heart:{i:'❤',c:'#ff6b6b'},
-                    coin:{i:'●',c:'#ffd700'},
-                    shield:{i:'◆',c:'#60a5fa'},
-                    magnet:{i:'◎',c:'#f472b6'},
-                    double:{i:'▲',c:'#a78bfa'},
-                    speed:{i:'★',c:'#fbbf24'},
-                    fire:{i:'◕',c:'#ff4500'},
-                    shrink:{i:'○',c:'#67e8f9'},
-                    ghost:{i:'◇',c:'#c4b5fd'},
-                    slow:{i:'⏱️',c:'#8b5cf6'}
-                };
-                const it=icons[this.type]||icons.coin;
-                c.shadowColor=it.c;
-                c.font=`${this.sz}px Arial`;
-                c.textAlign='center';
-                c.textBaseline='middle';
-                c.fillText(it.i,this.x,y);
-                
-                c.restore();
-            } 
-        };
-        
-        function spawnColls(p){
-            const x=p.x+p.w/2;
-            const y=p.y-28;
-            
-            if(Math.random()<CONFIG.HEART_SPAWN&&G.lives<G.maxLives){
-                colls.push(new Coll(x,y,'heart'));
-            } else if(Math.random()<CONFIG.POWERUP_SPAWN){
-                const types=['shield','magnet','double','speed','fire','shrink','ghost','slow'];
-                colls.push(new Coll(x,y,types[Math.floor(Math.random()*types.length)]));
-            } else if(Math.random()<CONFIG.COIN_SPAWN){
-                colls.push(new Coll(x,y,'coin'));
-            }
-        };
-        
-        function updateColls(){
-            colls.forEach(c=>c.update());
-            
-            colls.forEach(c=>{
-                if(c.got) return;
-                const dx=(P.x+P.w/2)-c.x;
-                const dy=(P.y+P.h/2)-c.y;
-                if(Math.sqrt(dx*dx+dy*dy)<P.w/2+c.sz/2){
-                    c.got=true;
-                    collect(c.type);
-                }
-            });
-            
-            for(let i=colls.length-1;i>=0;i--){
-                if(colls[i].got||colls[i].y-G.camY>G.h+50){
-                    colls.splice(i,1);
-                }
-            }
-        };
-        
-        function collect(type){
-            playSound('collect');
-            let text='',color='#fff';
-            
-            switch(type){
-                case 'heart':
-                    if(G.lives<G.maxLives){
-                        G.lives++;
-                        updateHearts();
-                    }
-                    text='+❤';
-                    color='#ff6b6b';
-                    break;
-                case 'coin':
-                    const coinValue = 50 + (G.level * 10);
-                    addScore(coinValue);
-                    text=`+${coinValue}`;
-                    color='#ffd700';
-                    break;
-                case 'shield':
-                    G.pTimers.shield=8000;
-                    text='KALKAN!';
-                    color='#60a5fa';
-                    break;
-                case 'magnet':
-                    G.pTimers.magnet=10000;
-                    text='MIKNATIZ!';
-                    color='#f472b6';
-                    break;
-                case 'double':
-                    G.pTimers.double=12000;
-                    P.canDbl=true;
-                    text='ÇİFT ZIPLAMA!';
-                    color='#a78bfa';
-                    break;
-                case 'speed':
-                    G.pTimers.speed=8000;
-                    text='HIZ!';
-                    color='#fbbf24';
-                    break;
-                case 'fire':
-                    G.pTimers.fire=6000;
-                    text='ALEV!';
-                    color='#ff4500';
-                    break;
-                case 'shrink':
-                    G.pTimers.shrink=10000;
-                    text='KÜÇÜLME!';
-                    color='#67e8f9';
-                    break;
-                case 'ghost':
-                    G.pTimers.ghost=8000;
-                    text='HAYALET!';
-                    color='#c4b5fd';
-                    break;
-                case 'slow':
-                    G.pTimers.slow=CONFIG.SLOW_TIME;
-                    G.slowFactor = 0.4;
-                    text='ZAMAN YAVAŞ!';
-                    color='#8b5cf6';
-                    break;
-            }
-            
-            if(text) addFloat(P.x+P.w/2,P.y-20,text,color);
-            createParts(P.x+P.w/2,P.y,8,'#ffd700');
-            updatePuBar();
-        };
-        
-        // Partiküller
-        const parts = [];
-        class Part{
-            constructor(x,y,c){
-                this.x=x;
-                this.y=y;
-                this.c=c;
-                this.vx=(Math.random()-0.5)*7;
-                this.vy=(Math.random()-0.5)*7-2;
-                this.life=1;
-                this.sz=2.5+Math.random()*3;
-            }
-            update(dt){
-                this.x+=this.vx*dt*60;
-                this.y+=this.vy*dt*60;
-                this.vy+=0.25*dt*60;
-                this.life-=0.025*dt*60;
-            }
-            render(c){
-                c.globalAlpha=this.life;
-                c.fillStyle=this.c;
-                c.beginPath();
-                c.arc(this.x,this.y-G.camY,this.sz,0,Math.PI*2);
-                c.fill();
-                c.globalAlpha=1;
-            }
-        };
-        
-        function createParts(x,y,n,c){
-            for(let i=0;i<n;i++) parts.push(new Part(x,y,c));
-        };
-        
-        function updateParts(dt){
-            parts.forEach(p=>p.update(dt));
-            for(let i=parts.length-1;i>=0;i--){
-                if(parts[i].life<=0) parts.splice(i,1);
-            }
-        };
-        
-        // Uçan metinler
-        function addFloat(x,y,text,color){
-            G.floats.push({x,y,text,color,life:1.2});
-        };
-        
-        function updateFloats(dt){
-            G.floats.forEach(t=>{
-                t.y-=40*dt;
-                t.life-=dt*0.8;
-            });
-            G.floats=G.floats.filter(t=>t.life>0);
-        };
-        
-        function renderFloats(c){
-            G.floats.forEach(t=>{
-                c.save();
-                c.globalAlpha=Math.min(1,t.life);
-                c.font='bold 16px Fredoka One';
-                c.textAlign='center';
-                c.fillStyle=t.color;
-                c.shadowBlur=8;
-                c.shadowColor=t.color;
-                c.fillText(t.text,t.x,t.y-G.camY);
-                c.restore();
-            });
-        };
-        
-        // Çarpışma kontrolü
-        function checkColl(){
-            if(P.vy<=0) return;
-            
-            platforms.forEach(p=>{
-                if(p.broken) return;
-                
-                if(P.x+P.w>p.x && P.x<p.x+p.w && P.y+P.h>p.y && P.y+P.h<p.y+p.h+14 && P.vy>0){
-                    if(p.type === 'spiky') {
-                        if(G.pTimers.shield > 0) {
-                            p.type = 'normal';
-                            G.pTimers.shield = 0;
-                            updatePuBar();
-                            addFloat(p.x + p.w/2, p.y, 'KALKAN KIRILDI!', '#ff0000');
-                        } else {
-                            loseLife();
-                            P.y = p.y - P.h - 5;
-                            P.vy = -5;
-                            return;
-                        }
-                    }
-                    
-                    P.y=p.y-P.h;
-                    
-                    if(p.type==='spring'){
-                        P.bounce(CONFIG.SPRING);
-                        createParts(P.x+P.w/2,p.y,10,'#f472b6');
-                    } else if(p.type==='trampolin'){
-                        P.bounce(CONFIG.SPRING*1.3);
-                        createParts(P.x+P.w/2,p.y,12,'#fbbf24');
-                    } else if(p.type==='crumbling'){
-                        P.bounce();
-                        p.startCrumble();
-                    } else if(p.type==='ice'){
-                        P.bounce();
-                        P.onIce=true;
-                    } else if(p.type==='teleport'&&p.teleportCooldown<=0){
-                        P.bounce();
-                        p.teleportCooldown=2000;
-                        const vis=platforms.filter(q=>q!==p&&!q.broken&&q.y>G.camY-100&&q.y<G.camY+G.h);
-                        if(vis.length>0){
-                            const tgt=vis[Math.floor(Math.random()*vis.length)];
-                            P.x=tgt.x+tgt.w/2-P.w/2;
-                            addFloat(P.x+P.w/2,P.y,'IŞINLANDI!','#c084fc');
-                        }
-                    } else {
-                        P.bounce();
-                    }
-                    
-                    G.combo++;
-                    if(G.combo>G.maxC) G.maxC=G.combo;
-                    
-                    if(G.combo%5===0&&G.combo>=5){
-                        showCombo(G.combo);
-                    }
-                    
-                    const hm=Math.floor((CONFIG.START_Y-P.y)/45);
-                    if(hm>G.maxH){
-                        addScore((hm-G.maxH)*10);
-                        G.maxH=hm;
-                    }
-                    
-                    checkAchieve();
-                }
-            });
-        };
-        
-        // Öfke barı
-        function updateRageBar(){
-            const pct=(G.rage/CONFIG.RAGE_MAX)*100;
-            document.getElementById('rageFill').style.width=pct+'%';
-            
-            const btn=document.getElementById('rageBtn');
-            const mobileRageBtn=document.getElementById('mobileRage');
-            
-            G.rageReady=G.rage>=CONFIG.RAGE_MAX;
-            
-            btn.classList.toggle('ready',G.rageReady);
-            mobileRageBtn.classList.toggle('ready',G.rageReady);
-        };
-        
-        function activateRage(e){
-            if(e) e.stopPropagation(); 
-            if(!G.rageReady||G.state!=='playing') return;
-            
-            G.rage=0;
-            G.isRaging=true;
-            G.rageUsed++;
-            updateRageBar();
-            P.bounce(CONFIG.RAGE_LAUNCH);
-            G.shake=15;
-            addFloat(P.x+P.w/2,P.y-40,'🔥 SÜPER FIRLA! 🔥','#ff4500');
-            playSound('spring');
-        };
-        
-        function decayRage(dt){
-            if(P.vy>0&&G.rage>0){
-                G.rage-=CONFIG.RAGE_DECAY*dt*60;
-                if(G.rage<0) G.rage=0;
-                updateRageBar();
-            }
-        };
-        
-        function showCombo(n){
-            const el=document.getElementById('comboPopup');
-            el.textContent=`x${n} KOMBO!`;
-            el.classList.add('show');
-            setTimeout(()=>el.classList.remove('show'),600);
-        };
-        
-        // Skor ekleme (çarpanla birlikte)
-        function addScore(points) {
-            G.score += points * G.scoreMultiplier;
-        };
-        
-        // Skor çarpanı güncelleme - DÜZELTİLDİ
-        function updateMultiplier() {
-            if(G.combo >= 5) {
-                G.multiplierTimer = 5000;
-                G.scoreMultiplier = Math.min(5, Math.floor(G.combo / 5) + 1);
-                
-                const multiEl = document.getElementById('multiplierDisplay');
-                multiEl.textContent = `x${G.scoreMultiplier} ÇARPAN!`;
-                multiEl.style.display = 'block';
-            }
-        };
-        
-        function checkAchieve(){
-            ACHIEVEMENTS.forEach(a=>{
-                if(!G.unlocked.includes(a.id)&&a.check(G)){
-                    G.unlocked.push(a.id);
-                    localStorage.setItem('skyA',JSON.stringify(G.unlocked));
-                    showAchieve(a.name);
-                }
-            });
-        };
-        
-        function showAchieve(name){
-            const el=document.getElementById('achievementPopup');
-            document.getElementById('achievementText').textContent=name;
-            el.classList.add('show');
-            playSound('achieve');
-            setTimeout(()=>el.classList.remove('show'),2500);
-        };
-        
-        function updateCam(){
-            G.targetCam=P.y-CONFIG.SCROLL_TH;
-            if(G.targetCam<G.camY){
-                G.camY+=(G.targetCam-G.camY)*CONFIG.CAM_LERP;
-            }
-            if(G.shake>0){
-                G.shake*=0.88;
-                if(G.shake<0.08) G.shake=0;
-            }
-        };
-        
-        // Ses sistemi
-        let audioCtx;
-        function initAudio(){
-            if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-        };
-        
-        function playSound(type){
-            if(!audioCtx) return;
-            if(audioCtx.state==='suspended') audioCtx.resume();
-            
-            const osc=audioCtx.createOscillator();
-            const gain=audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            
-            const sounds={
-                bounce:[380,0.08,0.08],
-                spring:[550,0.1,0.12],
-                collect:[700,0.06,0.06],
-                achieve:[900,0.1,0.2],
-                hurt:[120,0.12,0.18,'sawtooth']
-            };
-            const s=sounds[type]||sounds.bounce;
-            osc.type=s[3]||'sine';
-            osc.frequency.value=s[0];
-            gain.gain.setValueAtTime(s[1],audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+s[2]);
-            osc.start();
-            osc.stop(audioCtx.currentTime+s[2]);
-        };
-        
-        function loseLife(){
-            if(G.pTimers.shield>0){
-                G.pTimers.shield=0;
-                updatePuBar();
-                P.y=G.camY+80;
-                P.vy=CONFIG.BOUNCE;
-                playSound('collect');
-                return;
-            }
-            
-            if(G.pTimers.ghost>0) return;
-            
-            G.lives--;
-            G.combo=0;
-            G.rage=0;
-            G.scoreMultiplier = 1;
-            G.multiplierTimer = 0;
-            document.getElementById('multiplierDisplay').style.display = 'none';
-            updateRageBar();
-            updateHearts();
-            playSound('hurt');
-            G.shake=10;
-            
-            if(G.lives<=0){
-                endGame();
-            } else {
-                const vis=platforms.filter(p=>!p.broken&&p.y>G.camY&&p.y<G.camY+G.h);
-                if(vis.length>0){
-                    const b=vis.reduce((a,c)=>a.y<c.y?a:c);
-                    P.x=b.x+b.w/2-P.w/2;
-                    P.y=b.y-P.h;
-                    P.vy=0;
-                }
-            }
-        };
-        
-        function updateHearts(){
-            const c=document.getElementById('heartsDisplay');
-            c.innerHTML='';
-            for(let i=0;i<G.maxLives;i++){
-                const s=document.createElement('span');
-                s.className='heart'+(i>=G.lives?' empty':'');
-                s.textContent='❤️';
-                c.appendChild(s);
-            }
-        };
-        
-        function updateHUD(){
-            document.getElementById('scoreDisplay').textContent=G.score;
-            document.getElementById('heightDisplay').textContent=G.maxH+'m';
-            document.getElementById('comboDisplay').textContent='x'+Math.max(1,G.combo);
-            
-            const levelIndicator = document.getElementById('levelIndicator');
-            if(G.levelChanged) {
-                const levelName = document.getElementById('levelName');
-                levelName.textContent = LEVELS[G.level-1].name;
-                levelIndicator.classList.add('show');
-                G.levelChanged = false;
-            }
-        };
-        
-        function updatePuBar(){
-            ['shield','magnet','double','speed','fire','slow'].forEach(p=>{
-                const el=document.getElementById('pu-'+p);
-                if(el) el.classList.toggle('active',G.pTimers[p]>0);
-                
-                const timerEl = document.getElementById('timer-'+p);
-                if(timerEl && G.pTimers[p] > 0) {
-                    const seconds = Math.ceil(G.pTimers[p] / 1000);
-                    timerEl.textContent = seconds > 1 ? seconds : '';
-                } else if(timerEl) {
-                    timerEl.textContent = '';
-                }
-            });
-        };
-        
-        function updatePuTimers(dt){
-            ['shield','magnet','double','speed','fire','shrink','ghost','slow'].forEach(p=>{
-                if(G.pTimers[p]>0){
-                    G.pTimers[p]-=dt*1000;
-                    if(G.pTimers[p]<=0){
-                        G.pTimers[p]=0;
-                        if(p === 'slow') G.slowFactor = 1.0;
-                        updatePuBar();
-                    }
-                }
-            });
-        };
-        
-        function applyShrink(){
-            P.w=G.pTimers.shrink>0?CONFIG.PLAYER_SIZE*0.7:CONFIG.PLAYER_SIZE;
-            P.h=P.w;
-        };
-        
-        // Ana oyun döngüsü - DÜZELTİLDİ
-        function loop(ts){
-            if(!G.lastT) G.lastT=ts;
-            G.dt=Math.min(ts-G.lastT,30);
-            G.lastT=ts;
-            const dt=G.dt/1000;
-            
-            if(G.state==='playing'&&!G.paused){
-                applyShrink();
-                P.update(dt);
-                updatePlats(dt);
-                updateEnemies(dt);
-                updateBoss(dt);
-                updateMeteors(dt);
-                updateColls();
-                updateParts(dt);
-                updateFloats(dt);
-                updatePuTimers(dt);
-                decayRage(dt);
-                checkColl();
-                updateCam();
-                bg.update();
-                render();
-                updateHUD();
-                
-                // Skor çarpanı zamanlayıcısı - DÜZELTİLDİ
-                if(G.multiplierTimer > 0) {
-                    G.multiplierTimer -= dt * 1000;
-                    if(G.multiplierTimer <= 0) {
-                        G.scoreMultiplier = 1;
-                        document.getElementById('multiplierDisplay').style.display = 'none';
-                    }
-                }
-                
-                // Rush modu zamanlayıcı
-                if(G.rushMode) {
-                    G.rushTimer -= dt * 1000;
-                    
-                    if(G.rushTimer <= 0) {
-                        endGame();
-                    }
-                    
-                    const seconds = Math.ceil(G.rushTimer / 1000);
-                    const minutes = Math.floor(seconds / 60);
-                    const remainingSeconds = seconds % 60;
-                    const timeText = `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
-                    document.getElementById('rushTimer').textContent = timeText;
-                    
-                    if(seconds <= 10) {
-                        document.getElementById('rushTimer').style.background = 'rgba(220,38,38,0.9)';
-                        if(seconds <= 5) {
-                            G.shake = 3;
-                        }
-                    }
-                }
-            }
-            
-            requestAnimationFrame(loop);
-        };
-        
-        function render(){
-            const c=G.ctx;
-            c.save();
-            
-            if(G.shake>0){
-                c.translate((Math.random()-0.5)*G.shake,(Math.random()-0.5)*G.shake);
-            }
-            
-            bg.render(c);
-            platforms.forEach(p=>p.render(c));
-            renderEnemies(c);
-            renderBoss(c);
-            renderMeteors(c);
-            colls.forEach(cl=>cl.render(c));
-            parts.forEach(p=>p.render(c));
-            P.render(c);
-            renderFloats(c);
-            
-            c.restore();
-        };
-        
-        // Oyun kontrolleri
-        function startGame(rushMode = false){
+        function playSound(type) {
             initAudio();
-            if(audioCtx&&audioCtx.state==='suspended') audioCtx.resume();
-            
-            G.state='playing';
-            G.score=0;
-            G.maxH=0;
-            G.combo=0;
-            G.maxC=0;
-            G.lives = rushMode ? 1 : 3;
-            G.camY=0;
-            G.targetCam=0;
-            G.shake=0;
-            G.paused=false;
-            G.rage=0;
-            G.rageUsed=0;
-            G.level=1;
-            G.enemies=[];
-            G.levelChanged=false;
-            G.hardModeShown=false;
-            G.extremeModeShown=false;
-            G.bossActive=false;
-            G.bossHealth=0;
-            G.bossSpawned=false;
-            G.bossDefeated=false;
-            G.meteorShower=false;
-            G.meteors=[];
-            G.meteorSurvived=false;
-            G.rushMode = rushMode;
-            G.rushTimer = rushMode ? CONFIG.RUSH_TIME * 1000 : 0;
-            G.rushScore = 0;
-            G.scoreMultiplier = 1;
-            G.multiplierTimer = 0;
-            G.slowFactor = 1.0;
-            G.pTimers={shield:G.startWithShield ? 8000 : 0,magnet:0,double:0,speed:0,fire:0,shrink:0,ghost:0,slow:0};
-            G.floats=[];
-            
-            P.reset();
-            genPlats();
-            colls.length=0;
-            parts.length=0;
-            bg.init();
-            
-            updateHearts();
-            updatePuBar();
-            updateRageBar();
-            
-            document.getElementById('mainMenu').classList.add('hidden');
-            document.getElementById('gameOverMenu').classList.add('hidden');
-            document.getElementById('pauseOverlay').classList.remove('show');
-            document.getElementById('levelIndicator').classList.remove('show');
-            document.getElementById('multiplierDisplay').style.display = 'none';
-            
-            if(rushMode) {
-                document.getElementById('rushTimer').style.display = 'block';
-                document.getElementById('gameOverTitle').textContent = 'SÜRE BİTTİ';
+            const ctx = gameState.audioContext;
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            switch (type) {
+                case 'flip':
+                    oscillator.frequency.value = 400;
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                    oscillator.start(ctx.currentTime);
+                    oscillator.stop(ctx.currentTime + 0.1);
+                    break;
+
+                case 'match':
+                    oscillator.frequency.value = 800;
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                    oscillator.start(ctx.currentTime);
+                    oscillator.stop(ctx.currentTime + 0.3);
+
+                    // Add a second tone for richness
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.connect(gain2);
+                    gain2.connect(ctx.destination);
+                    osc2.frequency.value = 1200;
+                    osc2.type = 'sine';
+                    gain2.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                    osc2.start(ctx.currentTime + 0.05);
+                    osc2.stop(ctx.currentTime + 0.35);
+                    break;
+
+                case 'error':
+                    oscillator.frequency.value = 200;
+                    oscillator.type = 'sawtooth';
+                    gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                    oscillator.start(ctx.currentTime);
+                    oscillator.stop(ctx.currentTime + 0.2);
+                    break;
+
+                case 'win':
+                    // Victory melody
+                    const notes = [523, 587, 659, 784, 880];
+                    notes.forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.frequency.value = freq;
+                        osc.type = 'sine';
+                        gain.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.15);
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.3);
+                        osc.start(ctx.currentTime + i * 0.15);
+                        osc.stop(ctx.currentTime + i * 0.15 + 0.3);
+                    });
+                    break;
+            }
+        }
+
+        // ============================================
+        // GAME LOGIC
+        // ============================================
+
+        function getThemeForLevel(level) {
+            if (level <= 5) return emojiThemes.animals;
+            if (level <= 10) return emojiThemes.food;
+            if (level <= 15) return emojiThemes.sports;
+            return emojiThemes.travel;
+        }
+
+        function getGridConfigForLevel(level) {
+            if (level <= 4) return gridConfigs[0];
+            if (level <= 9) return gridConfigs[1];
+            if (level <= 14) return gridConfigs[2];
+            if (level <= 19) return gridConfigs[3];
+            return gridConfigs[4];
+        }
+
+        function startGame() {
+            // Load saved progress
+            const savedLevel = localStorage.getItem('hafizaUstasiLevel');
+            if (savedLevel) {
+                gameState.currentLevel = parseInt(savedLevel);
+            }
+
+            document.getElementById('startScreen').classList.add('hidden');
+            initLevel();
+        }
+
+        function initLevel() {
+            const theme = getThemeForLevel(gameState.currentLevel);
+            const config = getGridConfigForLevel(gameState.currentLevel);
+
+            // Reset state
+            gameState.moves = 0;
+            gameState.matches = 0;
+            gameState.flippedCards = [];
+            gameState.lockBoard = false;
+            gameState.cards = [];
+            gameState.jokerAvailable = true;
+            gameState.comboCount = 0;
+            gameState.startTime = Date.now();
+
+            if (gameState.timer) {
+                clearInterval(gameState.timer);
+                gameState.timer = null;
+            }
+
+            // Update UI
+            document.getElementById('levelDisplay').textContent = gameState.currentLevel;
+            document.getElementById('movesDisplay').textContent = gameState.moves;
+            document.getElementById('themeBadge').textContent = theme.name;
+            document.getElementById('jokerCount').textContent = '1';
+            document.getElementById('jokerBtn').disabled = false;
+
+            // Timer setup
+            if (config.time > 0) {
+                gameState.timeRemaining = config.time;
+                document.getElementById('timerContainer').style.display = 'flex';
+                document.getElementById('timerDisplay').textContent = formatTime(gameState.timeRemaining);
+                startTimer();
             } else {
-                document.getElementById('rushTimer').style.display = 'none';
-                document.getElementById('gameOverTitle').textContent = 'OYUN BİTTİ';
+                document.getElementById('timerContainer').style.display = 'none';
             }
-            
-            setTimeout(()=>P.bounce(),80);
-        };
-        
-        function pauseGame(){
-            G.paused=true;
-            document.getElementById('pauseOverlay').classList.add('show');
-        };
-        
-        function resumeGame(){
-            G.paused=false;
-            G.lastT=performance.now();
-            document.getElementById('pauseOverlay').classList.remove('show');
-        };
-        
-        function restartGame(){
-            startGame(G.rushMode);
-        };
-        
-        function quitGame(){
-            G.state='menu';
-            document.getElementById('pauseOverlay').classList.remove('show');
-            document.getElementById('mainMenu').classList.remove('hidden');
-            G.startWithShield = false;
-        };
-        
-        function endGame(){
-            G.state='gameover';
-            G.rushScore = G.score;
-            
-            let isRec=false;
-            if(G.score>G.best){
-                G.best=G.score;
-                localStorage.setItem('skyB',G.best);
-                isRec=true;
-            }
-            if(G.maxH>G.bestH){
-                G.bestH=G.maxH;
-                localStorage.setItem('skyH',G.bestH);
-                isRec=true;
-            }
-            if(G.level>G.bestLevel){
-                G.bestLevel=G.level;
-                localStorage.setItem('skyL',G.bestLevel);
-                isRec=true;
-            }
-            
-            document.getElementById('finalScore').textContent=G.score;
-            document.getElementById('finalHeight').textContent=G.maxH+'m';
-            document.getElementById('finalCombo').textContent='x'+Math.max(1,G.maxC);
-            document.getElementById('finalLevel').textContent=`Seviye: ${G.level}`;
-            document.getElementById('finalLevelNum').textContent=G.level;
-            document.getElementById('bestScore').textContent=G.best;
-            document.getElementById('bestHeight').textContent=G.bestH+'m';
-            document.getElementById('bestLevel').textContent=G.bestLevel;
-            document.getElementById('newRecord').classList.toggle('hidden',!isRec);
-            
-            const rushResult = document.getElementById('rushResult');
-            if(G.rushMode) {
-                rushResult.style.display = 'block';
-                rushResult.textContent = `Hızlı Mod Skoru: ${G.rushScore}`;
-                if(G.rushScore >= 1000) checkAchieve();
-            } else {
-                rushResult.style.display = 'none';
-            }
-            
-            document.getElementById('gameOverMenu').classList.remove('hidden');
-            G.startWithShield = false;
-        };
-        
-        function changeSkin(d){
-            G.skin=(G.skin+d+SKINS.length)%SKINS.length;
-            document.getElementById('skinPreview').textContent=SKINS[G.skin];
-        };
-        
-        // Günlük ödül kontrolü - DÜZELTİLDİ
-        function checkDailyReward() {
-            const today = new Date().toDateString();
-            
-            if(G.lastLogin !== today && G.state === 'menu') {
-                G.claimedToday = false;
-                showDailyReward();
-            } else {
-                G.claimedToday = true;
-            }
-        };
-        
-        function showDailyReward() {
-            if(G.claimedToday) return;
-            
-            const rewards = [
-                {icon: '❤️', text: '+1 CAN', type: 'life'},
-                {icon: '⭐', text: '500 PUAN', type: 'score'},
-                {icon: '🔥', text: 'ÖFKE DOLU', type: 'rage'},
-                {icon: '◆', text: 'KALKAN', type: 'shield'}
-            ];
-            
-            const reward = rewards[G.loginStreak % rewards.length];
-            
-            const dailyDiv = document.createElement('div');
-            dailyDiv.id = 'dailyReward';
-            dailyDiv.className = 'daily-overlay';
-            dailyDiv.innerHTML = `
-                <h2 style="font-family: 'Fredoka One'; margin-bottom: 20px;">🎁 GÜNLÜK ÖDÜL 🎁</h2>
-                <div style="font-size: 48px; margin: 20px;">${reward.icon}</div>
-                <div style="font-size: 24px; margin-bottom: 10px;">${reward.text}</div>
-                <div style="font-size: 14px; margin-bottom: 30px; color: #aaa;">
-                    ${G.loginStreak + 1}. gün
-                </div>
-                <button id="claimReward" style="
-                    padding: 15px 40px; background: linear-gradient(135deg, #6366f1, #ec4899);
-                    border: none; border-radius: 40px; color: white; font-family: 'Fredoka One';
-                    font-size: 18px; cursor: pointer; margin-bottom: 20px;
-                ">ÖDÜLÜ AL</button>
-                <button id="closeDaily" style="
-                    padding: 10px 30px; background: transparent; border: 2px solid rgba(255,255,255,0.3);
-                    border-radius: 30px; color: white; cursor: pointer;
-                ">KAPAT</button>
-            `;
-            
-            document.getElementById('gameContainer').appendChild(dailyDiv);
-            
-            // Buton olay dinleyicilerini doğru şekilde ekle
-            document.getElementById('claimReward').addEventListener('click', function() {
-                claimDailyReward(reward);
+
+            // Generate cards
+            const shuffledEmojis = [...theme.emojis].sort(() => Math.random() - 0.5);
+            const selectedEmojis = shuffledEmojis.slice(0, config.pairs);
+            const cardEmojis = [...selectedEmojis, ...selectedEmojis];
+            cardEmojis.sort(() => Math.random() - 0.5);
+
+            // Setup board
+            const gameBoard = document.getElementById('gameBoard');
+            gameBoard.innerHTML = '';
+            gameBoard.style.gridTemplateColumns = `repeat(${config.cols}, 1fr)`;
+            gameBoard.style.gridTemplateRows = `repeat(${config.rows}, 1fr)`;
+
+            // Calculate card size
+            const maxWidth = window.innerWidth * 0.9;
+            const maxHeight = window.innerHeight * 0.5;
+            const cardSize = Math.min(
+                Math.floor(maxWidth / config.cols) - 12,
+                Math.floor(maxHeight / config.rows) - 12,
+                100
+            );
+
+            // Create cards
+            cardEmojis.forEach((emoji, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.style.width = `${cardSize}px`;
+                card.style.height = `${cardSize}px`;
+                card.dataset.emoji = emoji;
+                card.dataset.index = index;
+
+                card.innerHTML = `
+                    <div class="card-face card-front"></div>
+                    <div class="card-face card-back">${emoji}</div>
+                `;
+
+                card.addEventListener('click', () => flipCard(card));
+                gameBoard.appendChild(card);
+                gameState.cards.push(card);
             });
-            
-            document.getElementById('closeDaily').addEventListener('click', function() {
-                dailyDiv.remove();
-                G.claimedToday = true;
+
+            // Preview mechanic - show all cards for 2 seconds
+            showPreview();
+        }
+
+        function showPreview() {
+            gameState.lockBoard = true;
+            gameState.cards.forEach(card => {
+                card.classList.add('flipped', 'preview');
             });
-        };
-        
-        function claimDailyReward(reward) {
-            const today = new Date().toDateString();
-            
-            if(G.lastLogin === today) return;
-            
-            G.lastLogin = today;
-            G.loginStreak++;
-            localStorage.setItem('skyLastLogin', today);
-            localStorage.setItem('skyLoginStreak', G.loginStreak.toString());
-            G.claimedToday = true;
-            
-            // Ödülü uygula
-            switch(reward.type) {
-                case 'life':
-                    G.maxLives = Math.min(6, G.maxLives + 1);
-                    G.lives = G.maxLives;
-                    break;
-                case 'score':
-                    G.best += 500;
-                    localStorage.setItem('skyB', G.best.toString());
-                    document.getElementById('bestScore').textContent = G.best;
-                    break;
-                case 'rage':
-                    // Sonraki oyun için başlangıç öfkesi
-                    G.startWithRage = true;
-                    break;
-                case 'shield':
-                    G.startWithShield = true;
-                    break;
-            }
-            
-            // Günlük ödül penceresini kaldır
-            const dailyDiv = document.getElementById('dailyReward');
-            if(dailyDiv) {
-                dailyDiv.remove();
-            }
-            
-            // Bildirim göster
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                background: rgba(0,0,0,0.8); color: #ffd700; padding: 20px 40px;
-                border-radius: 20px; font-family: 'Fredoka One'; font-size: 20px;
-                z-index: 2001; text-align: center; border: 3px solid #ffd700;
-            `;
-            notification.innerHTML = `
-                <div style="font-size: 36px; margin-bottom: 10px;">${reward.icon}</div>
-                <div>${reward.text} KAZANDIN!</div>
-            `;
-            document.getElementById('gameContainer').appendChild(notification);
-            
+
             setTimeout(() => {
-                notification.remove();
+                gameState.cards.forEach(card => {
+                    card.classList.remove('flipped', 'preview');
+                });
+                gameState.lockBoard = false;
             }, 2000);
-        };
-        
-        // Mobil kontroller
-        function setupMobileControls(){
-            const leftBtn = document.getElementById('mobileLeft');
-            const rightBtn = document.getElementById('mobileRight');
-            const jumpBtn = document.getElementById('mobileJump');
-            const rageBtn = document.getElementById('mobileRage');
-            const pauseBtn = document.getElementById('mobilePauseBtn');
-            const startBtn = document.getElementById('startBtn');
-            const rushBtn = document.getElementById('rushBtn');
-            
-            // Sol buton
-            leftBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                G.mobileLeft = true;
-            });
-            
-            leftBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                G.mobileLeft = false;
-            });
-            
-            leftBtn.addEventListener('touchcancel', (e) => {
-                e.preventDefault();
-                G.mobileLeft = false;
-            });
-            
-            // Sağ buton
-            rightBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                G.mobileRight = true;
-            });
-            
-            rightBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                G.mobileRight = false;
-            });
-            
-            rightBtn.addEventListener('touchcancel', (e) => {
-                e.preventDefault();
-                G.mobileRight = false;
-            });
-            
-            // Zıpla butonu
-            jumpBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if(G.state==='playing' && !G.paused){
-                    if(P.canDbl && P.vy > 0){
-                        P.bounce();
-                        P.canDbl = false;
-                    }
-                }
-            });
-            
-            // Öfke butonu
-            rageBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if(G.state==='playing' && !G.paused && G.rageReady){
-                    activateRage(e);
-                }
-            });
-            
-            // Duraklatma butonu
-            pauseBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if(G.state==='playing'){
-                    if(G.paused){
-                        resumeGame();
-                    } else {
-                        pauseGame();
-                    }
-                }
-            });
-            
-            // Başlat butonları
-            startBtn.addEventListener('click', () => startGame(false));
-            startBtn.addEventListener('touchstart', (e) => {
-                e.stopPropagation();
-                startGame(false);
-            });
-            
-            rushBtn.addEventListener('click', () => startGame(true));
-            rushBtn.addEventListener('touchstart', (e) => {
-                e.stopPropagation();
-                startGame(true);
-            });
-            
-            // Klavye kontrolleri
-            document.addEventListener('keydown', (e) => {
-                if(G.state==='playing'){
-                    if(e.key==='Escape'){
-                        e.preventDefault();
-                        G.paused ? resumeGame() : pauseGame();
-                    }
-                    
-                    if((e.key===' '||e.key==='ArrowUp'||e.key==='w'||e.key==='W')){
-                        if(P.canDbl && P.vy>0){
-                            P.bounce();
-                            P.canDbl=false;
-                        } else if(G.rageReady){
-                            activateRage();
-                        }
-                    }
-                }
-                
-                G.keys[e.key] = true;
-            });
-            
-            document.addEventListener('keyup', (e) => {
-                G.keys[e.key] = false;
-            });
-            
-            // Dokunmatik kontroller
-            const gameContainer = document.getElementById('gameContainer');
-            
-            gameContainer.addEventListener('touchstart', (e) => {
-                if(e.target.closest('.mobile-btn') || e.target.closest('.play-btn') || 
-                   e.target.closest('.skin-arrow') || e.target.closest('.pause-btn')) {
-                    return;
-                }
-                
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = gameContainer.getBoundingClientRect();
-                const x = touch.clientX - rect.left;
-                const mid = rect.width / 2;
-                
-                if(x < mid){
-                    G.touchL = true;
-                    G.touchR = false;
-                } else {
-                    G.touchL = false;
-                    G.touchR = true;
-                }
-            });
-            
-            gameContainer.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-            });
-            
-            gameContainer.addEventListener('touchend', (e) => {
-                G.touchL = false;
-                G.touchR = false;
-            });
-        };
-        
-        // Oyunu başlat
-        function init(){
-            G.canvas=document.getElementById('gameCanvas');
-            G.ctx=G.canvas.getContext('2d');
-            
-            function resize(){
-                const cont=document.getElementById('gameContainer');
-                const rect=cont.getBoundingClientRect();
-                G.w=rect.width;
-                G.h=rect.height;
-                G.canvas.width=G.w;
-                G.canvas.height=G.h;
+        }
+
+        function flipCard(card) {
+            if (gameState.lockBoard) return;
+            if (card === gameState.flippedCards[0]) return;
+            if (card.classList.contains('matched')) return;
+            if (card.classList.contains('flipped')) return;
+
+            playSound('flip');
+            card.classList.add('flipped');
+            gameState.flippedCards.push(card);
+
+            if (gameState.flippedCards.length === 2) {
+                checkMatch();
             }
-            
-            window.addEventListener('resize',resize);
-            resize();
-            
-            document.getElementById('bestScore').textContent=G.best;
-            document.getElementById('bestHeight').textContent=G.bestH+'m';
-            document.getElementById('bestLevel').textContent=G.bestLevel;
-            document.getElementById('skinPreview').textContent=SKINS[G.skin];
-            
-            setupMobileControls();
-            bg.init();
-            
-            // Günlük ödül kontrolü
-            setTimeout(checkDailyReward, 500);
-            
-            requestAnimationFrame(loop);
-        };
-        
-        window.addEventListener('load',init);
+        }
+
+        function checkMatch() {
+            gameState.lockBoard = true;
+            gameState.moves++;
+            document.getElementById('movesDisplay').textContent = gameState.moves;
+
+            const [card1, card2] = gameState.flippedCards;
+            const isMatch = card1.dataset.emoji === card2.dataset.emoji;
+
+            if (isMatch) {
+                handleMatch(card1, card2);
+            } else {
+                handleMismatch(card1, card2);
+            }
+        }
+
+        function handleMatch(card1, card2) {
+            playSound('match');
+
+            setTimeout(() => {
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+
+                gameState.matches++;
+                gameState.comboCount++;
+
+                // Combo fire effect
+                if (gameState.comboCount >= 2) {
+                    document.getElementById('gameBoard').classList.add('combo-fire');
+                    setTimeout(() => {
+                        document.getElementById('gameBoard').classList.remove('combo-fire');
+                    }, 1000);
+                }
+
+                gameState.flippedCards = [];
+                gameState.lockBoard = false;
+
+                // Check win condition
+                const config = getGridConfigForLevel(gameState.currentLevel);
+                if (gameState.matches === config.pairs) {
+                    setTimeout(handleLevelComplete, 500);
+                }
+            }, 600);
+        }
+
+        function handleMismatch(card1, card2) {
+            playSound('error');
+            gameState.comboCount = 0; // Reset combo
+
+            setTimeout(() => {
+                card1.classList.add('unmatched');
+                card2.classList.add('unmatched');
+
+                setTimeout(() => {
+                    card1.classList.remove('flipped', 'unmatched');
+                    card2.classList.remove('flipped', 'unmatched');
+                    gameState.flippedCards = [];
+                    gameState.lockBoard = false;
+                }, 500);
+            }, 800);
+        }
+
+        function handleLevelComplete() {
+            if (gameState.timer) {
+                clearInterval(gameState.timer);
+            }
+
+            playSound('win');
+
+            const stars = calculateStars();
+            showWinModal(stars);
+            createConfetti();
+
+            // Save progress
+            if (gameState.currentLevel < 20) {
+                localStorage.setItem('hafizaUstasiLevel', gameState.currentLevel + 1);
+            }
+        }
+
+        function calculateStars() {
+            const config = getGridConfigForLevel(gameState.currentLevel);
+            const timeTaken = (Date.now() - gameState.startTime) / 1000;
+            const perfectMoves = config.pairs;
+            const moveRatio = gameState.moves / perfectMoves;
+
+            // Star criteria
+            if (moveRatio <= 1.2 && (config.time === 0 || timeTaken < config.time * 0.5)) {
+                return 3; // Perfect
+            } else if (moveRatio <= 1.5 && (config.time === 0 || timeTaken < config.time * 0.75)) {
+                return 2; // Good
+            } else {
+                return 1; // Completed
+            }
+        }
+
+        function showWinModal(stars) {
+            const modal = document.getElementById('winModal');
+            const starsDisplay = document.getElementById('starsDisplay');
+            const winMessage = document.getElementById('winMessage');
+
+            starsDisplay.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                const star = document.createElement('span');
+                star.className = 'star';
+                star.textContent = i < stars ? '⭐' : '☆';
+                starsDisplay.appendChild(star);
+            }
+
+            winMessage.textContent = `Seviye ${gameState.currentLevel} tamamlandı! ${gameState.moves} hamle kullandınız.`;
+            modal.classList.add('show');
+        }
+
+        function nextLevel() {
+            document.getElementById('winModal').classList.remove('show');
+
+            if (gameState.currentLevel >= 20) {
+                alert('🎉 Tebrikler! Tüm seviyeleri tamamladınız! 🎉');
+                gameState.currentLevel = 1;
+                localStorage.setItem('hafizaUstasiLevel', 1);
+            } else {
+                gameState.currentLevel++;
+            }
+
+            initLevel();
+        }
+
+        function restartLevel() {
+            document.getElementById('winModal').classList.remove('show');
+            document.getElementById('gameOverModal').classList.remove('show');
+            initLevel();
+        }
+
+        function useJoker() {
+            if (!gameState.jokerAvailable) return;
+
+            gameState.jokerAvailable = false;
+            gameState.lockBoard = true;
+            document.getElementById('jokerBtn').disabled = true;
+            document.getElementById('jokerCount').textContent = '0';
+
+            // Show all cards for 1 second
+            gameState.cards.forEach(card => {
+                if (!card.classList.contains('matched')) {
+                    card.classList.add('flipped');
+                }
+            });
+
+            setTimeout(() => {
+                gameState.cards.forEach(card => {
+                    if (!card.classList.contains('matched')) {
+                        card.classList.remove('flipped');
+                    }
+                });
+                gameState.lockBoard = false;
+            }, 1000);
+        }
+
+        function startTimer() {
+            gameState.timer = setInterval(() => {
+                gameState.timeRemaining--;
+                const timerDisplay = document.getElementById('timerDisplay');
+                timerDisplay.textContent = formatTime(gameState.timeRemaining);
+
+                if (gameState.timeRemaining <= 30) {
+                    timerDisplay.classList.add('warning');
+                }
+
+                if (gameState.timeRemaining <= 0) {
+                    clearInterval(gameState.timer);
+                    handleGameOver();
+                }
+            }, 1000);
+        }
+
+        function handleGameOver() {
+            gameState.lockBoard = true;
+            document.getElementById('gameOverModal').classList.add('show');
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function createConfetti() {
+            const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#f093fb', '#48dbfb'];
+
+            for (let i = 0; i < 100; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * window.innerWidth + 'px';
+                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 3 + 's';
+                    document.body.appendChild(confetti);
+
+                    setTimeout(() => confetti.remove(), 3000);
+                }, i * 30);
+            }
+        }
+
+        // Responsive resize
+        window.addEventListener('resize', () => {
+            if (gameState.cards.length > 0) {
+                const config = getGridConfigForLevel(gameState.currentLevel);
+                const maxWidth = window.innerWidth * 0.9;
+                const maxHeight = window.innerHeight * 0.5;
+                const cardSize = Math.min(
+                    Math.floor(maxWidth / config.cols) - 12,
+                    Math.floor(maxHeight / config.rows) - 12,
+                    100
+                );
+                gameState.cards.forEach(card => {
+                    card.style.width = `${cardSize}px`;
+                    card.style.height = `${cardSize}px`;
+                });
+            }
+        });
     </script>
 </body>
+
 </html>
