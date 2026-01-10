@@ -29,8 +29,9 @@
 
         body {
             font-family: 'Fredoka', sans-serif;
-            min-height: 100vh;
-            overflow-x: hidden;
+            height: 100vh; /* min-height yerine height kullanıyoruz */
+            width: 100vw;  /* Genişliği sabitliyoruz */
+            overflow: hidden; /* İşte titremeyi çözen sihirli kod */
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             color: white;
             position: relative;
@@ -275,19 +276,11 @@
         .stat-val { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
 
         /* Game HUD */
-        .game-hud {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            z-index: 100;
-            pointer-events: none;
+       .game-hud .btn {
+            pointer-events: auto; /* Butonun tıklanabilirliğini geri açar */
+            position: relative;   /* Z-index sorunu olursa öne alır */
+            z-index: 101;
         }
-
         .hud-panel {
             background: rgba(0,0,0,0.4);
             backdrop-filter: blur(10px);
@@ -364,18 +357,24 @@
         }
         
         /* ... Eski CSS'in game-board ve card kısımları buraya entegre edilecek ... */
-        .game-board {
+       .game-board {
             display: grid;
             gap: 10px;
             perspective: 1000px;
+            /* Kart dönerken 3D alanı merkeze sabitler */
+            perspective-origin: center center; 
         }
         .card {
             position: relative;
             cursor: pointer;
             transform-style: preserve-3d;
             transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
-            width: 80px; /* Default */
+            width: 80px; 
             height: 80px;
+            /* YENİ EKLENENLER: */
+            will-change: transform; /* Tarayıcıya öncelik verdirir */
+            -webkit-backface-visibility: hidden; /* Safari/iOS titremesini çözer */
+            backface-visibility: hidden;
         }
         .card.flipped { transform: rotateY(180deg); }
         .card.matched { animation: matchPop 0.5s forwards; }
@@ -463,7 +462,7 @@
         }
         .toast.show { transform: translateX(0); }
         .toast-icon { font-size: 1.5rem; }
-        
+
         /* Mobil Dokunmatik İyileştirmeleri */
         button, .card, .menu-btn, .powerup-btn, .toggle-switch {
             touch-action: manipulation; /* Çift tıklama zoomunu iptal eder, tepkiyi hızlandırır */
