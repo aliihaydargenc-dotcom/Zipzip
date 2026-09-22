@@ -1,5 +1,6 @@
 import './styles.css';
-import { tempoAt, routeStep, steer, launchVelocity } from './climb-physics';
+import { TowerWorld, MAX_SPEED } from './tower-engine';
+import { drawTower } from './tower-render';
 
 type Screen = 'home' | 'climb' | 'game' | 'shop' | 'stats' | 'achievements' | 'settings';
 type PowerUp = 'joker' | 'freeze' | 'hint';
@@ -12,6 +13,7 @@ type PlayerData = {
   stats: { totalGames: number; wins: number; totalMatches: number; bestMoves: number | null };
   achievements: string[];
   climb: { bestHeight: number; runs: number; totalLandings: number };
+  tower: { bestFloor: number; bestScore: number; bestCombo: number; runs: number };
   settings: { sfx: boolean; haptics: boolean; music?: boolean };
 };
 
@@ -28,6 +30,7 @@ const DEFAULT_DATA: PlayerData = {
   stats: { totalGames: 0, wins: 0, totalMatches: 0, bestMoves: null },
   achievements: [],
   climb: { bestHeight: 0, runs: 0, totalLandings: 0 },
+  tower: { bestFloor: 0, bestScore: 0, bestCombo: 0, runs: 0 },
   settings: { sfx: true, haptics: true, music: true },
 };
 
@@ -54,6 +57,7 @@ function normalizeData(raw: unknown): PlayerData {
     inventory: { ...DEFAULT_DATA.inventory, ...(source.inventory ?? {}) },
     stats: { ...DEFAULT_DATA.stats, ...(source.stats ?? {}) },
     climb: { ...DEFAULT_DATA.climb, ...(source.climb ?? {}) },
+    tower: { ...DEFAULT_DATA.tower, ...(source.tower ?? {}) },
     settings: { ...DEFAULT_DATA.settings, ...(source.settings ?? {}) },
     achievements: Array.isArray(source.achievements) ? source.achievements : [],
   };
@@ -192,622 +196,165 @@ function haptic(pattern: number | number[]) {
 }
 
 
-type PlatformKind = 'solid' | 'moving' | 'fragile' | 'spring' | 'boost';
-type PickupKind = 'coin' | 'spring' | 'shield';
-type Platform = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  vx: number;
-  kind: PlatformKind;
-  breakTimer: number;
-  broken: boolean;
-  routeIndex: number;
-  anchor: boolean;
-  originX?: number;
-  travel?: number;
-};
-type Pickup = { x: number; y: number; kind: PickupKind; collected: boolean };
-
 const Climb = {
   canvas: null as HTMLCanvasElement | null,
   ctx: null as CanvasRenderingContext2D | null,
+  world: new TowerWorld(),
   running: false,
+  paused: false,
+  settled: false,
   rafId: 0,
   lastTime: 0,
-  width: 360,
-  height: 640,
-  dpr: 1,
-  cameraY: 0,
-  gravity: 1500,
-  velocityX: 0,
-  elapsed: 0,
   accumulator: 0,
-  launchFx: 0,
-  jumpGravity: 1500,
-  particles: [] as { x: number; y: number; vx: number; vy: number; life: number; color: string }[],
   keys: new Set<string>(),
-  baseJump: 660,
-  horizontalSpeed: 390,
-  dragSensitivity: 0.9,
-  ball: { x: 180, y: 58, prevY: 58, vy: 0, radius: 13 },
-  targetX: 180,
-  platforms: [] as Platform[],
-  pickups: [] as Pickup[],
-  highestPlatformY: 0,
-  routeIndex: 0,
-  safePoint: { x: 180, y: 30 },
-  landings: 0,
-  runHeight: 0,
-  runCoins: 0,
-  springJumps: 0,
-  shieldCharges: 0,
-  nextMilestone: 100,
-  dragging: false,
-  pointerId: -1,
-  lastPointerX: 0,
-
-  wrapX(value: number) {
-    return ((value % this.width) + this.width) % this.width;
-  },
-
-  wrappedDelta(from: number, to: number) {
-    let delta = to - from;
-    if (delta > this.width / 2) delta -= this.width;
-    if (delta < -this.width / 2) delta += this.width;
-    return delta;
-  },
+  touches: new Map<number, string>(),
+  bound: false,
+  reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
 
   start() {
+    cancelAnimationFrame(this.rafId);
     activeMode = 'climb';
-    AudioFx.unlock();
-    Store.data.climb.runs += 1;
-    Store.save();
-    navigate('climb');
+    AudioFx.unlock(); closeResult(); navigate('climb');
     this.canvas = byId<HTMLCanvasElement>('climbCanvas');
     this.ctx = this.canvas.getContext('2d');
-    if (!this.ctx) throw new Error('Canvas context oluşturulamadı.');
-    this.bindPointer();
-    this.resize();
-    this.reset();
-    this.running = true;
-    this.lastTime = performance.now();
-    this.rafId = requestAnimationFrame((time) => this.loop(time));
-  },
-
-  reset() {
-    cancelAnimationFrame(this.rafId);
-    this.running = false;
-    this.cameraY = 0;
-    this.velocityX = 0;
-    this.elapsed = 0;
-    this.accumulator = 0;
-    this.launchFx = 0;
-    this.jumpGravity = 1500;
-    this.baseJump = 660;
-    this.dragging = false;
-    this.pointerId = -1;
-    this.keys.clear();
-    this.particles = [];
-    this.landings = 0;
-    this.runHeight = 0;
-    this.runCoins = 0;
-    this.springJumps = 0;
-    this.shieldCharges = 0;
-    this.nextMilestone = 100;
-    this.routeIndex = 0;
-    this.pickups = [];
-
-    const startWidth = Math.min(150, this.width * 0.42);
-    const startX = (this.width - startWidth) / 2;
-    const startY = 30;
-    this.ball = { x: this.width / 2, y: startY + 13, prevY: startY + 13, vy: this.baseJump, radius: 13 };
-    this.targetX = this.ball.x;
-    this.safePoint = { x: this.ball.x, y: startY };
-    this.platforms = [{
-      x: startX,
-      y: startY,
-      width: startWidth,
-      height: 12,
-      vx: 0,
-      kind: 'solid',
-      breakTimer: 0,
-      broken: false,
-      routeIndex: 0,
-      anchor: true,
-    }];
-    this.highestPlatformY = startY;
-    this.generatePlatforms(this.height + 850);
-    this.updateHud();
+    this.world = new TowerWorld();
+    this.running = true; this.paused = false; this.settled = false;
+    this.accumulator = 0; this.clearInput(); this.resize(); this.bindPointer();
+    Store.data.tower.runs++; Store.save();
     byId('dragHint').classList.remove('hidden');
+    byId('towerPause').hidden = true;
+    this.lastTime = performance.now();
+    this.rafId = requestAnimationFrame(t => this.loop(t));
   },
-
   resize() {
     if (!this.canvas || !this.ctx) return;
-    const oldWidth = this.width;
     const rect = this.canvas.getBoundingClientRect();
-    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
-    this.width = Math.max(1, rect.width);
-    this.height = Math.max(1, rect.height);
-    this.canvas.width = Math.floor(this.width * this.dpr);
-    this.canvas.height = Math.floor(this.height * this.dpr);
-    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-
-    if (oldWidth > 0 && Math.abs(oldWidth - this.width) > 1 && this.platforms.length > 0) {
-      const ratio = this.width / oldWidth;
-      this.ball.x = this.wrapX(this.ball.x * ratio);
-      this.targetX = this.wrapX(this.targetX * ratio);
-      this.safePoint.x = this.wrapX(this.safePoint.x * ratio);
-      this.platforms.forEach((platform) => {
-        platform.width *= ratio;
-        platform.x = Math.max(8, Math.min(this.width - platform.width - 8, platform.x * ratio));
-        if (platform.originX !== undefined) platform.originX = platform.x;
-        if (platform.travel !== undefined) platform.travel *= ratio;
-      });
-      this.pickups.forEach((pickup) => { pickup.x = this.wrapX(pickup.x * ratio); });
-    }
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    this.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    // Physics uses the same 360-unit tower on every phone and desktop.
+    this.world.viewHeight = Math.max(150, rect.height / Math.max(1, rect.width) * 360);
+    const scale = this.canvas.width / 360;
+    this.ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    this.world.generate(this.world.camera + this.world.viewHeight + 420);
+    this.draw();
   },
-
+  clearInput() {
+    this.keys.clear(); this.touches.clear();
+    document.querySelectorAll('[data-tower-control]').forEach(el => el.classList.remove('pressed'));
+  },
+  interact() {
+    byId('dragHint').classList.add('hidden'); AudioFx.unlock();
+  },
   bindPointer() {
-    const canvas = this.canvas;
-    if (!canvas || canvas.dataset.dragBound === '1') return;
-    canvas.dataset.dragBound = '1';
-
-    canvas.addEventListener('pointerdown', (event) => {
-      if (!this.running || this.dragging || !event.isPrimary) return;
-      event.preventDefault();
-      AudioFx.unlock();
-      this.dragging = true;
-      this.pointerId = event.pointerId;
-      this.lastPointerX = event.clientX;
-      canvas.setPointerCapture(event.pointerId);
-      byId('dragHint').classList.add('hidden');
+    if (this.bound) return;
+    this.bound = true;
+    document.querySelectorAll<HTMLButtonElement>('[data-tower-control]').forEach(button => {
+      button.addEventListener('pointerdown', event => {
+        if (!this.running || this.paused) return;
+        event.preventDefault(); this.interact();
+        this.touches.set(event.pointerId, button.dataset.towerControl!);
+        button.setPointerCapture(event.pointerId); button.classList.add('pressed');
+      });
+      const release = (event: PointerEvent) => {
+        this.touches.delete(event.pointerId);
+        if (![...this.touches.values()].includes(button.dataset.towerControl!)) button.classList.remove('pressed');
+      };
+      button.addEventListener('pointerup', release);
+      button.addEventListener('pointercancel', release);
+      button.addEventListener('lostpointercapture', release);
+      button.addEventListener('contextmenu', event => event.preventDefault());
     });
-
-    canvas.addEventListener('pointermove', (event) => {
-      if (!this.running || !this.dragging || event.pointerId !== this.pointerId) return;
-      const dx = event.clientX - this.lastPointerX;
-      this.lastPointerX = event.clientX;
+    window.addEventListener('keydown', event => {
+      if (!this.running) return;
+      const key = event.key.toLowerCase();
+      if (key === 'escape' || key === 'p') { event.preventDefault(); if (!event.repeat) this.pause(); return; }
+      if (!['arrowleft','arrowright','a','d',' ','arrowup','w'].includes(key)) return;
       event.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const scale = this.width / Math.max(1, rect.width);
-      this.targetX = this.wrapX(this.targetX + dx * scale * this.dragSensitivity);
+      if (this.paused) return;
+      this.interact(); this.keys.add(key);
     });
-
-    const release = (event: PointerEvent) => {
-      if (event.pointerId !== this.pointerId) return;
-      this.dragging = false;
-      this.pointerId = -1;
-    };
-    canvas.addEventListener('pointerup', release);
-    canvas.addEventListener('pointercancel', release);
-    canvas.addEventListener('lostpointercapture', release);
-    window.addEventListener('keydown', (event) => {
-      if (!this.running || !['ArrowLeft', 'ArrowRight', 'a', 'd'].includes(event.key)) return;
-      event.preventDefault();
-      this.keys.add(event.key);
-      byId('dragHint').classList.add('hidden');
-      AudioFx.unlock();
+    window.addEventListener('keyup', event => this.keys.delete(event.key.toLowerCase()));
+    window.addEventListener('blur', () => { if (this.running && !this.paused) this.pause(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.running && !this.paused) this.pause();
     });
-    window.addEventListener('keyup', (event) => this.keys.delete(event.key));
-    window.addEventListener('blur', () => { this.keys.clear(); this.dragging = false; this.pointerId = -1; });
-    document.addEventListener('visibilitychange', () => { this.lastTime = performance.now(); this.accumulator = 0; this.keys.clear(); });
+    byId('pauseClimb').addEventListener('click', () => this.pause());
+    byId('resumeTower').addEventListener('click', () => this.pause());
   },
-
-  generatePlatforms(targetY: number) {
-    let y = this.highestPlatformY;
-    const previous = this.platforms.filter(p => p.anchor).sort((a, b) => b.y - a.y)[0];
-    let lastCenter = previous ? previous.x + previous.width / 2 : this.width / 2;
-    while (y < targetY) {
-      this.routeIndex++;
-      const step = routeStep(y, lastCenter, this.width);
-      y = step.y;
-      // Every row has a permanent, reachable landing. Risk platforms are optional detours.
-      const pad = this.routeIndex > 12 && this.routeIndex % 13 === 0;
-      this.platforms.push({ x: step.center - step.width / 2, y, width: step.width,
-        height: 13, vx: 0, kind: pad ? 'spring' : 'solid', breakTimer: 0,
-        broken: false, routeIndex: this.routeIndex, anchor: true });
-      const roll = Math.random();
-      if (roll < 0.27) this.pickups.push({ x: step.center, y: y + 32, kind: 'coin', collected: false });
-      else if (this.routeIndex > 5 && roll < 0.32) this.pickups.push({ x: step.center, y: y + 34, kind: 'spring', collected: false });
-      else if (this.routeIndex > 9 && roll < 0.35) this.pickups.push({ x: step.center, y: y + 34, kind: 'shield', collected: false });
-      if (this.routeIndex > 5 && Math.random() < 0.24 + step.difficulty * 0.48) {
-        const w = 56 + Math.random() * 16;
-        const side = step.center < this.width / 2 ? 1 : -1;
-        const x = step.center + side * (step.width / 2 + w / 2 + 18) - w / 2;
-        if (x >= 10 && x + w <= this.width - 10) {
-          const kind: PlatformKind = step.difficulty > 0.3 && Math.random() < 0.22 ? 'boost'
-            : step.difficulty > 0.15 && Math.random() < 0.55 ? 'moving' : 'fragile';
-          this.platforms.push({ x, y: y + 24, width: w, height: 12,
-            vx: kind === 'moving' ? (Math.random() < 0.5 ? -1 : 1) : 0,
-            originX: x, travel: 12, kind, breakTimer: 0, broken: false,
-            routeIndex: this.routeIndex, anchor: false });
-          this.pickups.push({ x: x + w / 2, y: y + 56, kind: 'coin', collected: false });
-        }
-      }
-      lastCenter = step.center;
-    }
-    this.highestPlatformY = y;
+  pause() {
+    if (!this.running) return;
+    this.paused = !this.paused; this.clearInput(); this.accumulator = 0;
+    this.lastTime = performance.now();
+    byId('towerPause').hidden = !this.paused;
+    byId('pauseClimb').setAttribute('aria-label', this.paused ? 'Devam et' : 'Duraklat');
+    if (!this.paused) AudioFx.unlock();
   },
-
+  input() {
+    const touch = [...this.touches.values()];
+    const left = this.keys.has('arrowleft') || this.keys.has('a') || touch.includes('left');
+    const right = this.keys.has('arrowright') || this.keys.has('d') || touch.includes('right');
+    return { direction: Number(right) - Number(left), jump: touch.includes('jump') || [' ','arrowup','w'].some(k => this.keys.has(k)) };
+  },
   loop(time: number) {
     if (!this.running) return;
-    this.accumulator += Math.min(0.1, Math.max(0, (time - this.lastTime) / 1000));
+    const dt = Math.min(.1, Math.max(0, (time - this.lastTime) / 1000));
     this.lastTime = time;
-    while (this.accumulator >= 1 / 120 && this.running) {
-      this.update(1 / 120);
-      this.accumulator -= 1 / 120;
-    }
-    this.draw();
-    if (this.running) this.rafId = requestAnimationFrame((next) => this.loop(next));
-  },
-
-  burst(x: number, y: number, color: string, count = 16) {
-    for (let i = 0; i < count; i++) {
-      const angle = Math.PI * 2 * i / count;
-      this.particles.push({ x, y, vx: Math.cos(angle) * 100, vy: Math.sin(angle) * 130,
-        life: 0.45, color });
-    }
-  },
-
-  launch(multiplier = 1.65) {
-    const meters = Math.max(0, this.ball.y - 43) / 10;
-    this.ball.vy = Math.max(this.ball.vy, launchVelocity(meters, multiplier));
-    this.jumpGravity = tempoAt(meters).gravity;
-    this.launchFx = 0.65;
-    this.burst(this.ball.x, this.ball.y - 10, '#8870f8', 22);
-    AudioFx.play('spring');
-    haptic([18, 20, 30]);
-  },
-
-  update(dt: number) {
-    const ball = this.ball;
-
-    this.elapsed += dt;
-    this.launchFx = Math.max(0, this.launchFx - dt);
-    const tempo = tempoAt(Math.max(0, ball.y - 43) / 10);
-    this.baseJump = tempo.jump;
-    this.gravity = tempo.gravity;
-    this.horizontalSpeed = tempo.horizontal;
-    const direction = Number(this.keys.has('ArrowRight') || this.keys.has('d')) - Number(this.keys.has('ArrowLeft') || this.keys.has('a'));
-    if (direction) this.targetX = this.wrapX(this.targetX + direction * this.horizontalSpeed * dt);
-    const dx = this.wrappedDelta(ball.x, this.targetX);
-    const movement = steer(this.velocityX, dx, dt, Math.max(0, ball.y - 43) / 10);
-    this.velocityX = movement.vx;
-    ball.x = this.wrapX(ball.x + movement.step);
-    ball.prevY = ball.y;
-    // Freeze gravity for this flight; crossing an altitude boundary cannot shorten the jump.
-    ball.y += ball.vy * dt - 0.5 * this.jumpGravity * dt * dt;
-    ball.vy -= this.jumpGravity * dt;
-    this.particles = this.particles.filter(p => p.life > 0);
-    for (const p of this.particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 450 * dt; }
-
-    for (const platform of this.platforms) {
-      if (platform.vx !== 0 && !platform.broken) {
-        platform.x += platform.vx * tempo.moving * dt;
-        const lo = Math.max(8, (platform.originX ?? platform.x) - (platform.travel ?? 12));
-        const hi = Math.min(this.width - platform.width - 8, (platform.originX ?? platform.x) + (platform.travel ?? 12));
-        if (platform.x <= lo || platform.x >= hi) {
-          platform.x = Math.max(lo, Math.min(hi, platform.x));
-          platform.vx *= -1;
-        }
-      }
-      if (platform.breakTimer > 0) {
-        platform.breakTimer -= dt;
-        if (platform.breakTimer <= 0) {
-          platform.broken = true;
-          this.burst(platform.x + platform.width / 2, platform.y, '#db9954', 12);
-          AudioFx.play('break');
-        }
+    if (!this.paused) {
+      this.accumulator += dt;
+      while (this.accumulator >= 1 / 120 && this.running) {
+        this.world.update(1 / 120, this.input());
+        this.feedback(); this.accumulator -= 1 / 120;
+        if (!this.world.alive) this.fail();
       }
     }
-
-    if (ball.vy < 0) {
-      const previousBottom = ball.prevY - ball.radius;
-      const nextBottom = ball.y - ball.radius;
-      for (const platform of [...this.platforms].sort((a, b) => b.y - a.y)) {
-        if (platform.broken) continue;
-        const hitRadius = ball.radius * 0.72;
-        const horizontalHit = [ball.x, ball.x - this.width, ball.x + this.width].some((centerX) =>
-          centerX + hitRadius > platform.x && centerX - hitRadius < platform.x + platform.width
-        );
-        const crossedTop = previousBottom >= platform.y && nextBottom <= platform.y;
-        if (!horizontalHit || !crossedTop) continue;
-
-        ball.y = platform.y + ball.radius;
-        const boosted = this.springJumps > 0;
-        const landingTempo = tempoAt(Math.max(0, ball.y - 43) / 10);
-        this.jumpGravity = landingTempo.gravity;
-        ball.vy = landingTempo.jump * (boosted ? 1.18 : 1);
-        if (boosted) this.springJumps -= 1;
-        this.landings += 1;
-        Store.data.climb.totalLandings += 1;
-
-        if (platform.kind !== 'fragile') {
-          this.safePoint = { x: this.wrapX(platform.x + platform.width / 2), y: platform.y };
-        }
-
-        if (platform.kind === 'spring' || platform.kind === 'boost') this.launch(platform.kind === 'boost' ? 1.9 : 1.5);
-        else AudioFx.play('bounce');
-        if ((platform.kind === 'fragile' || platform.kind === 'boost') && platform.breakTimer <= 0) {
-          platform.breakTimer = 0.22;
-          AudioFx.play('crack');
-          if (platform.kind !== 'boost') haptic([6, 12, 4]);
-        } else if (platform.kind !== 'spring' && platform.kind !== 'boost') {
-          haptic(6);
-        }
-        break;
-      }
-    }
-
-    for (const pickup of this.pickups) {
-      if (pickup.collected) continue;
-      const dxPickup = Math.abs(this.wrappedDelta(ball.x, pickup.x));
-      const dyPickup = Math.abs(ball.y - pickup.y);
-      if (dxPickup > ball.radius + 13 || dyPickup > ball.radius + 13) continue;
-      pickup.collected = true;
-      if (pickup.kind === 'coin') {
-        this.runCoins += 1;
-        Store.data.coins += 3;
-        AudioFx.play('pickup');
-      } else if (pickup.kind === 'spring') {
-        this.springJumps = Math.max(this.springJumps, 2);
-        this.launch();
-      } else {
-        this.shieldCharges = 1;
-        AudioFx.play('shield');
-        this.burst(ball.x, ball.y, '#36b9c9');
-      }
-      Store.save();
-      if (pickup.kind !== 'spring') haptic(8);
-    }
-
-    const desiredCamera = Math.max(this.cameraY, ball.y - this.height * 0.46);
-    this.cameraY += (desiredCamera - this.cameraY) * Math.min(1, dt * (tempo.camera + (this.launchFx > 0 ? 8 : 0)));
-    this.runHeight = Math.max(this.runHeight, Math.floor(Math.max(0, ball.y - 43) / 10));
-
-    if (this.runHeight >= this.nextMilestone) {
-      AudioFx.play('milestone');
-
-      this.nextMilestone += 100;
-    }
-
-    this.generatePlatforms(this.cameraY + this.height + 600 * tempo.speed);
-    this.platforms = this.platforms.filter((platform) => !platform.broken && platform.y > this.cameraY - 190);
-    this.pickups = this.pickups.filter((pickup) => !pickup.collected && pickup.y > this.cameraY - 140);
-
-    if (ball.y < this.cameraY - 115) {
-      if (this.shieldCharges > 0) this.rescue();
-      else {
-        this.fail();
-        return;
-      }
-    }
-    this.updateHud();
+    this.draw(); this.updateHud();
+    if (this.running) this.rafId = requestAnimationFrame(t => this.loop(t));
   },
-
-  rescue() {
-    this.shieldCharges = 0;
-    const platform = this.platforms.filter(p => p.anchor && !p.broken && p.y > this.cameraY + 30)
-      .sort((a, b) => a.y - b.y)[0];
-    if (!platform) { this.fail(); return; }
-    this.safePoint = { x: platform.x + platform.width / 2, y: platform.y };
-    this.cameraY = Math.max(0, platform.y - this.height * 0.25);
-    this.ball.x = this.safePoint.x;
-    this.targetX = this.ball.x;
-    this.velocityX = 0;
-    this.ball.y = platform.y + this.ball.radius;
-    this.ball.prevY = this.ball.y;
-    const tempo = tempoAt(Math.max(0, this.ball.y - 43) / 10);
-    this.ball.vy = tempo.jump;
-    this.jumpGravity = tempo.gravity;
-    AudioFx.play('shield');
-    haptic([20, 25, 20]);
-    toast('Kalkan seni kurtardı');
+  feedback() {
+    const events = this.world.events;
+    if (events.includes('superjump')) { AudioFx.play('spring'); haptic(15); }
+    else if (events.includes('jump')) AudioFx.play('bounce');
+    if (events.includes('combo')) { AudioFx.play('match'); haptic([8, 15, 8]); }
+    else if (events.includes('land')) haptic(4);
+    if (events.includes('bank')) AudioFx.play('milestone');
+    if (events.includes('wall')) AudioFx.play('flip');
   },
-
   updateHud() {
-    const heightEl = document.getElementById('climbHeight');
-    const bestEl = document.getElementById('climbBest');
-    const stepEl = document.getElementById('climbSteps');
-    const springEl = document.getElementById('springHud');
-    const shieldEl = document.getElementById('shieldHud');
-    const coinEl = document.getElementById('runCoinHud');
-    if (heightEl) heightEl.textContent = `${this.runHeight} m`;
-    if (bestEl) bestEl.textContent = `${Math.max(Store.data.climb.bestHeight, this.runHeight)} m`;
-    if (stepEl) stepEl.textContent = String(this.landings);
-    if (springEl) {
-      springEl.textContent = this.springJumps > 0 ? `Yay ×${this.springJumps}` : '';
-      springEl.hidden = this.springJumps === 0;
-      springEl.classList.toggle('active', this.springJumps > 0);
-    }
-    if (shieldEl) {
-      shieldEl.textContent = 'Kalkan';
-      shieldEl.hidden = this.shieldCharges === 0;
-      shieldEl.classList.toggle('active', this.shieldCharges > 0);
-    }
-    const tempoEl = document.getElementById('tempoHud');
-    if (tempoEl) tempoEl.textContent = tempoAt(this.runHeight).label;
-    if (coinEl) coinEl.textContent = `Altın ${this.runCoins}`;
+    const w = this.world;
+    byId('climbHeight').textContent = String(w.highestFloor);
+    byId('climbBest').textContent = String(w.score);
+    byId('climbSteps').textContent = String(Math.max(w.highestFloor, Store.data.tower.bestFloor));
+    byId('comboCount').textContent = w.combo ? `×${w.combo} KOMBO` : w.bankFlash > 0 ? `+${w.lastBank}` : 'KATLARI ATLA';
+    byId('comboHud').classList.toggle('active', w.combo > 0 || w.bankFlash > 0);
+    byId('comboFill').style.transform = `scaleX(${Math.max(0, w.comboTime / 3)})`;
+    const speed = Math.abs(w.player.vx) / MAX_SPEED;
+    byId('speedFill').style.transform = `scaleX(${speed})`;
+    byId('speedLabel').textContent = speed > .7 ? 'SÜPER SIÇRAMA' : 'HIZ KAZAN';
+    byId('tempoHud').textContent = !w.started ? 'HAZIR' : w.elapsed < 6 ? 'ISINMA' : `${Math.round(w.scrollSpeed)} · TEMPO`;
   },
-
-  draw() {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    ctx.clearRect(0, 0, this.width, this.height);
-
-    const sky = ctx.createLinearGradient(0, 0, 0, this.height);
-    const altitude = Math.min(1, this.cameraY / 4800);
-    sky.addColorStop(0, altitude > 0.55 ? '#cfdcff' : '#dde6ff');
-    sky.addColorStop(0.58, '#edf3ff');
-    sky.addColorStop(1, '#f9faff');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, this.width, this.height);
-
-    ctx.globalAlpha = 0.15 + altitude * 0.06;
-    ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 7; i += 1) {
-      const x = (i * 91 + this.cameraY * 0.06) % (this.width + 120) - 60;
-      const y = 70 + ((i * 137) % Math.max(180, this.height - 150));
-      ctx.beginPath();
-      ctx.ellipse(x, y, 46, 16, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
-    for (const platform of this.platforms) {
-      if (platform.broken) continue;
-      const sy = this.height - (platform.y - this.cameraY);
-      if (sy < -30 || sy > this.height + 30) continue;
-      const breaking = platform.breakTimer > 0;
-      const shake = breaking ? Math.sin(this.elapsed * 95) * 2 : 0;
-      const x = platform.x + shake;
-      const colors = { solid: '#526781', moving: '#21a99f', fragile: '#d7974c', spring: '#8060db', boost: '#e56578' };
-      ctx.save();
-      ctx.shadowColor = colors[platform.kind] + '44'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
-      ctx.fillStyle = colors[platform.kind];
-      roundRect(ctx, x, sy, platform.width, platform.height, 5); ctx.fill();
-      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-      ctx.fillStyle = 'rgba(255,255,255,.65)';
-      roundRect(ctx, x + 4, sy + 1, platform.width - 8, 3, 2); ctx.fill();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
-      if (platform.kind === 'moving') {
-        for (let i = 0; i < 3; i++) {
-          const mx = x + platform.width / 2 + (i - 1) * 14;
-          const d = Math.sign(platform.vx);
-          ctx.beginPath(); ctx.moveTo(mx - d * 3, sy + 5); ctx.lineTo(mx + d * 2, sy + 8); ctx.lineTo(mx - d * 3, sy + 11); ctx.stroke();
-        }
-      } else if (platform.kind === 'fragile') {
-        ctx.strokeStyle = '#794621';
-        for (const offset of [0.3, 0.67]) {
-          const mx = x + platform.width * offset;
-          ctx.beginPath(); ctx.moveTo(mx - 4, sy); ctx.lineTo(mx + 2, sy + 5); ctx.lineTo(mx - 2, sy + 8); ctx.lineTo(mx + 4, sy + 12); ctx.stroke();
-        }
-      } else if (platform.kind === 'spring' || platform.kind === 'boost') {
-        const mx = x + platform.width / 2;
-        this.drawIcon(platform.kind === 'boost' ? 'boost' : 'spring', mx, sy - 7, 0.7);
-        ctx.fillStyle = '#fff';
-        roundRect(ctx, mx - 18, sy - 2, 36, 4, 2); ctx.fill();
-      } else {
-        ctx.fillStyle = '#b6cadb';
-        for (const mx of [x + 9, x + platform.width - 9]) { ctx.beginPath(); ctx.arc(mx, sy + 8, 1.5, 0, Math.PI * 2); ctx.fill(); }
-      }
-      ctx.restore();
-    }
-
-    for (const pickup of this.pickups) {
-      if (pickup.collected) continue;
-      const sy = this.height - (pickup.y - this.cameraY);
-      if (sy < -30 || sy > this.height + 30) continue;
-      const color = pickup.kind === 'coin' ? '#f1ba40' : pickup.kind === 'spring' ? '#8966ed' : '#29adc3';
-      ctx.save();
-      ctx.globalAlpha = 0.12 + 0.06 * Math.sin(this.elapsed * 4 + pickup.y);
-      ctx.fillStyle = color;
-      ctx.beginPath(); ctx.arc(pickup.x, sy, 21 + Math.sin(this.elapsed * 4) * 2, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1; ctx.shadowColor = color; ctx.shadowBlur = 9;
-      this.drawIcon(pickup.kind, pickup.x, sy, 1);
-      ctx.restore();
-    }
-    for (const p of this.particles) {
-      ctx.globalAlpha = Math.max(0, p.life / 0.45); ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - 2, this.height - (p.y - this.cameraY), 4, 4);
-    }
-    ctx.globalAlpha = 1;
-
-    const ballY = this.height - (this.ball.y - this.cameraY);
-    if (this.launchFx > 0) {
-      ctx.strokeStyle = '#9578f5'; ctx.lineWidth = 3;
-      for (let i = 0; i < 3; i++) {
-        ctx.globalAlpha = this.launchFx * (0.7 - i * 0.15);
-        ctx.beginPath(); ctx.moveTo(this.ball.x + (i - 1) * 8, ballY + 18);
-        ctx.lineTo(this.ball.x + (i - 1) * 11, ballY + 40 + i * 12); ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-    }
-    if (this.shieldCharges) {
-      ctx.strokeStyle = '#29adc3'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(this.ball.x, ballY, 20, 0, Math.PI * 2); ctx.stroke();
-    }
-    const drawBall = (x: number) => {
-      const glow = ctx.createRadialGradient(x - 5, ballY - 6, 2, x, ballY, this.ball.radius * 1.5);
-      glow.addColorStop(0, '#ffffff');
-      glow.addColorStop(0.22, '#ffd166');
-      glow.addColorStop(1, '#f4a62a');
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(x, ballY, this.ball.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(105,76,12,.25)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    };
-    drawBall(this.ball.x);
-    if (this.ball.x < this.ball.radius) drawBall(this.ball.x + this.width);
-    if (this.ball.x > this.width - this.ball.radius) drawBall(this.ball.x - this.width);
+  draw() { if (this.ctx) drawTower(this.ctx, this.world, this.reducedMotion); },
+  settle() {
+    if (this.settled) return;
+    this.settled = true;
+    const d = Store.data.tower, w = this.world;
+    w.bankCombo();
+    d.bestFloor = Math.max(d.bestFloor, w.highestFloor);
+    d.bestScore = Math.max(d.bestScore, w.score);
+    d.bestCombo = Math.max(d.bestCombo, w.bestCombo);
+    Store.data.coins += Math.floor(w.highestFloor / 5);
+    Store.save();
   },
-
-  drawIcon(kind: PickupKind | 'boost', x: number, y: number, scale: number) {
-    const ctx = this.ctx!;
-    ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
-    ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    if (kind === 'coin') {
-      ctx.fillStyle = '#f9c550'; ctx.strokeStyle = '#c88b24';
-      ctx.beginPath(); ctx.ellipse(0, 0, 9, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = '#fff1ab'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.ellipse(0, 0, 5.5, 7.5, 0, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(0, 4); ctx.stroke();
-    } else if (kind === 'shield') {
-      ctx.fillStyle = '#32b3c6'; ctx.strokeStyle = '#e3ffff';
-      ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(10, -8); ctx.lineTo(8, 4);
-      ctx.quadraticCurveTo(6, 10, 0, 13); ctx.quadraticCurveTo(-6, 10, -8, 4); ctx.lineTo(-10, -8); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(0, 6); ctx.stroke();
-    } else {
-      ctx.strokeStyle = kind === 'boost' ? '#ffcad4' : '#7550d7';
-      ctx.beginPath(); ctx.moveTo(-9, 10); ctx.lineTo(9, 10); ctx.moveTo(-7, 6);
-      ctx.lineTo(7, 2); ctx.lineTo(-7, -2); ctx.lineTo(7, -6); ctx.stroke();
-      ctx.fillStyle = kind === 'boost' ? '#e56578' : '#8763e5';
-      ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(9, -8); ctx.lineTo(-9, -8); ctx.closePath(); ctx.fill();
-    }
-    ctx.restore();
-  },
-
   fail() {
     if (!this.running) return;
-    this.running = false;
-    cancelAnimationFrame(this.rafId);
-    Store.data.climb.bestHeight = Math.max(Store.data.climb.bestHeight, this.runHeight);
-    Store.save();
-    AudioFx.play('fail');
-    haptic([18, 28, 18]);
-    showResult('↗', 'Tırmanış bitti', `${this.runHeight} m · ${this.landings} basamak · ${this.runCoins} bonus coin`, false);
+    this.running = false; cancelAnimationFrame(this.rafId); this.clearInput(); this.settle();
+    AudioFx.play('fail'); haptic([15, 25, 20]);
+    showResult('↗', `${this.world.highestFloor}. kata ulaştın`, `${this.world.score} puan · En iyi kombo ×${this.world.bestCombo}`, false);
   },
-
   quit() {
-    this.running = false;
-    cancelAnimationFrame(this.rafId);
-    this.dragging = false;
-    closeResult();
-    this.keys.clear();
-    Store.data.climb.bestHeight = Math.max(Store.data.climb.bestHeight, this.runHeight);
-    Store.save();
-    navigate('home');
+    this.running = false; cancelAnimationFrame(this.rafId); this.clearInput(); this.settle(); closeResult(); navigate('home');
   },
 };
-
-// Development-only hook for deterministic browser regression checks; removed by Vite in production.
-if (import.meta.env.DEV) Object.assign(window, { __zipzip: Climb });
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-  const r = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + width, y, x + width, y + height, r);
-  ctx.arcTo(x + width, y + height, x, y + height, r);
-  ctx.arcTo(x, y + height, x, y, r);
-  ctx.arcTo(x, y, x + width, y, r);
-  ctx.closePath();
-}
 
 let activeMode: 'climb' | 'memory' = 'climb';
 
@@ -1018,27 +565,27 @@ app.innerHTML = `
     <section class="screen active" data-screen="home">
       <div class="hero">
         <p class="eyebrow">Zipzip</p>
-        <h1>Zıpla.<br>Yukarı çık.</h1>
-        <p>Top kendi kendine zıplar. Oyun alanında parmağını sağa sola sürükleyerek topu basamaklara indir ve olabildiğince yüksel.</p>
+        <h1>Hızını al.<br>Kuleyi fethet.</h1>
+        <p>Koş, hız kazan ve katları tek sıçramada aş. Kombonu sürdür; yükselen kameranın altında kalma.</p>
         <div class="resume-card">
           <div>
             <div class="resume-kicker">Ana oyun</div>
-            <div class="resume-title">Tırmanış</div>
-            <div class="resume-meta">En iyi: <span id="climbHomeBest">0 m</span> · Tuş yok, sürükle ve yönlendir</div>
+            <div class="resume-title">Buz Kulesi</div>
+            <div class="resume-meta">En iyi: <span id="climbHomeBest">0. kat</span> · Hızını sıçramaya dönüştür</div>
           </div>
-          <button class="primary-btn" id="resumeButton" type="button">Tırman</button>
+          <button class="primary-btn" id="resumeButton" type="button">Kuleye gir</button>
         </div>
       </div>
 
       <div class="dashboard-grid">
-        <article class="dashboard-card"><div class="dashboard-label">Zafer</div><div class="dashboard-value" id="homeWins">0</div><div class="dashboard-note">tamamlanan oyun</div></article>
-        <article class="dashboard-card"><div class="dashboard-label">Eşleşme</div><div class="dashboard-value" id="homeMatches">0</div><div class="dashboard-note">toplam çift</div></article>
-        <article class="dashboard-card"><div class="dashboard-label">En iyi</div><div class="dashboard-value" id="homeBest">—</div><div class="dashboard-note">en az hamle</div></article>
+        <article class="dashboard-card"><div class="dashboard-label">Rekor puan</div><div class="dashboard-value" id="homeWins">0</div><div class="dashboard-note">kule rekorun</div></article>
+        <article class="dashboard-card"><div class="dashboard-label">Kombo</div><div class="dashboard-value" id="homeMatches">0</div><div class="dashboard-note">en uzun seri</div></article>
+        <article class="dashboard-card"><div class="dashboard-label">Koşu</div><div class="dashboard-value" id="homeBest">—</div><div class="dashboard-note">kule denemesi</div></article>
       </div>
 
-      <div class="section-head"><h2>Oyunlar</h2><span>Tırmanış ana mod</span></div>
+      <div class="section-head"><h2>Oyunlar</h2><span>Buz Kulesi ana mod</span></div>
       <div class="mode-grid">
-        <button class="mode-card featured-mode" id="climbMode" type="button"><div class="mode-icon">●</div><div class="mode-title">Tırmanış</div><div class="mode-desc">Sürükleyerek yönlendir. Ulaşılabilir rotada kırılgan basamakları aş, Yay ve Kalkan bonuslarını topla.</div></button>
+        <button class="mode-card featured-mode" id="climbMode" type="button"><div class="mode-icon">↟</div><div class="mode-title">Buz Kulesi</div><div class="mode-desc">Momentum, duvardan sekme ve kombo. Mobilde yön tuşları + zıpla; bilgisayarda oklar + boşluk.</div></button>
         <button class="mode-card" id="memoryMode" type="button"><div class="mode-icon">🧠</div><div class="mode-title">Hafıza</div><div class="mode-desc">Mevcut eşleştirme oyunu artık Zipzip içindeki yan oyun olarak devam ediyor.</div></button>
       </div>
       <div class="quick-links">
@@ -1049,22 +596,26 @@ app.innerHTML = `
 
     <section class="screen climb-screen" data-screen="climb">
       <div class="climb-top">
-        <button class="icon-btn" id="quitClimb" type="button" aria-label="Tırmanıştan çık">←</button>
+        <button class="icon-btn" id="quitClimb" type="button" aria-label="Kuleden çık">←</button>
         <div class="climb-stats">
-          <div class="game-stat"><span>Yükseklik</span><strong id="climbHeight">0 m</strong></div>
-          <div class="game-stat"><span>Rekor</span><strong id="climbBest">0 m</strong></div>
-          <div class="game-stat"><span>Basamak</span><strong id="climbSteps">0</strong></div>
+          <div class="game-stat"><span>Kat</span><strong id="climbHeight">0</strong></div>
+          <div class="game-stat"><span>Puan</span><strong id="climbBest">0</strong></div>
+          <div class="game-stat"><span>Rekor kat</span><strong id="climbSteps">0</strong></div>
         </div>
       </div>
       <div class="climb-stage" id="climbStage">
         <canvas id="climbCanvas" aria-label="Zipzip tırmanış oyun alanı"></canvas>
-        <div class="climb-bonus-hud" aria-label="Koşu bonusları">
-          <span id="springHud">↑ —</span>
-          <span id="shieldHud">◆ —</span>
-          <span id="runCoinHud">● 0</span>
-        </div>
-        <div class="tempo-hud" id="tempoHud">Isınma</div><div class="drag-hint" id="dragHint">Sürükle ve yönlendir</div>
+        <div class="tower-combo" id="comboHud"><strong id="comboCount">KATLARI ATLA</strong><div class="combo-track"><i id="comboFill"></i></div></div>
+        <div class="tempo-hud" id="tempoHud">HAZIR</div>
+        <div class="drag-hint" id="dragHint">Koş → hız kazan → zıpla</div>
+        <div class="tower-pause" id="towerPause" hidden><strong>Mola</strong><button class="primary-btn" id="resumeTower" type="button">Devam et</button></div>
       </div>
+      <div class="tower-speed"><span id="speedLabel">HIZ KAZAN</span><div><i id="speedFill"></i></div><button id="pauseClimb" type="button" aria-label="Duraklat">Ⅱ</button></div>
+      <div class="tower-controls" aria-label="Oyun kontrolleri">
+        <div class="tower-directions"><button type="button" data-tower-control="left" aria-label="Sola koş">←</button><button type="button" data-tower-control="right" aria-label="Sağa koş">→</button></div>
+        <button type="button" data-tower-control="jump" class="tower-jump" aria-label="Zıpla">ZIPLA <span>↟</span></button>
+      </div>
+      <div class="tower-keyboard">← → / A D · Boşluk: zıpla · P: mola</div>
     </section>
 
     <section class="screen game-screen" data-screen="game">
@@ -1125,10 +676,10 @@ function renderGlobalStats() {
 
 function renderHome() {
   const data = Store.data;
-  byId('climbHomeBest').textContent = `${data.climb.bestHeight} m`;
-  byId('homeWins').textContent = String(data.stats.wins);
-  byId('homeMatches').textContent = String(data.stats.totalMatches);
-  byId('homeBest').textContent = data.stats.bestMoves === null ? '—' : String(data.stats.bestMoves);
+  byId('climbHomeBest').textContent = `${data.tower.bestFloor}. kat`;
+  byId('homeWins').textContent = String(data.tower.bestScore);
+  byId('homeMatches').textContent = `×${data.tower.bestCombo}`;
+  byId('homeBest').textContent = String(data.tower.runs);
 }
 
 function updateGameHud() {
@@ -1157,8 +708,11 @@ function renderShop() {
 function renderStats() {
   const stats = Store.data.stats;
   const entries = [
-    ['↗','Tırmanış rekoru', `${Store.data.climb.bestHeight} m`],
-    ['●','Tırmanış koşusu', Store.data.climb.runs],
+    ['↟','Kule rekoru', `${Store.data.tower.bestFloor}. kat`],
+    ['★','Kule puanı', Store.data.tower.bestScore],
+    ['×','En iyi kombo', Store.data.tower.bestCombo],
+    ['↗','Eski tırmanış rekoru', `${Store.data.climb.bestHeight} m`],
+    ['●','Kule koşusu', Store.data.tower.runs],
     ['▰','Toplam basamak', Store.data.climb.totalLandings],
     ['🎮','Başlatılan hafıza oyunu', stats.totalGames],
     ['🏁','Tamamlanan oyun', stats.wins],

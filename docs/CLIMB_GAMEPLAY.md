@@ -1,28 +1,37 @@
-# Zipzip climb: tempo and route redesign
+# Zipzip Buz Kulesi
 
-## Design basis
+The main mode now uses an Icy Tower-inspired momentum loop instead of automatic bouncing. Original runner art, tower renderer and physics are implemented locally; no Icy Tower assets are included.
 
-- Lima Sky's Doodle Jump listing describes distinct moving/broken/disappearing platforms and springs/rockets that immediately carry the player higher: https://apps.apple.com/us/app/doodle-jump-insanely-good/id456355158
-- Slow Rush Games' first-hand platforming implementation discusses acceleration and gravity as game-feel controls: https://www.slowrush.dev/news/adding-platforming/
-- JumpLab exposes jump, running acceleration and camera parameters as interacting design choices: https://fukuchi.org/en/works/jumplab/
+## Controls
 
-These sources inform principles, not claimed access to Doodle Jump's proprietary generator or numerical difficulty curve. The following tuning is Zipzip-specific.
+- Phone: hold left/right with one finger and jump with the other. Holding jump repeats it upon landing; tapping gives one jump. Controls are below the canvas, never over the landing area.
+- Keyboard: arrows or A/D to run, Space / W / Up to jump. P / Escape pauses.
+- Blur or hiding the tab automatically pauses and clears all held inputs. Resume is explicit.
+- The tutorial disappears on first gameplay input. It never intercepts input.
 
-## Contracts
+## Rules
 
-- Gesture overlays and toasts never receive pointer events. The hint is removed from layout at the first canvas pointer-down or direction-key input. Pointer capture handles drags outside the canvas; secondary pointers are ignored.
-- Spring collection immediately sets upward velocity to at least 1.65× local normal jump, emits a trail/burst, distinct sound and haptic. Two subsequent bounces get a smaller 1.18× bonus.
-- At 0/150/350/650/1000/1800m, speed is 1/1.08/1.22/1.42/1.65/1.85. Values interpolate continuously and cap for playability. Gravity scales with speed squared; jump velocity scales with speed. Normal apex remains 145.2px while airtime shrinks from 0.88s to 0.53s at 1000m. Gravity is fixed for each flight.
-- Horizontal movement uses acceleration and target braking, with lower starting maximum speed (270px/s). Simulation uses 120Hz steps independently of render rate.
-- Every generated row has a permanent solid/spring anchor. Normal jumps can reach the next anchor without a power-up. Fragile/moving/boost platforms are optional reward detours; removing all of them cannot break the permanent route. Moving detours have bounded travel. This guarantees a route, not survival after every player mistake.
-- A spring pad launches at 1.5×; a narrow, one-use boost pad at 1.9×. Five platform types have shape/detail cues, not color alone. Pickups use drawn spring, shield and minted-coin shapes with pulse halos.
-- Shield recovery uses an existing permanent anchor. It does not create a disconnected rescue platform.
-- Bounce is a 60ms bright tone; crack/break are 35/50ms filtered noise. Spring has a separate rising two-tone envelope. Device loudness and haptic quality still require physical-phone assessment.
+- Horizontal acceleration builds momentum up to 340 world units/s. Jump impulse ranges from 470 standing to 880 at full speed, with gravity 1550. Approximate apex: 71–250 units. Floors are 60 units apart: a small standing hop or up to four floors at speed.
+- Solid walls rebound the player at 85% speed; there is no horizontal wrap. Brief steering lock prevents an immediate repeat collision.
+- 90ms coyote window and 150ms jump buffer soften edge timing. Air control is lower than ground acceleration.
+- Consecutive landings that each advance at least two floors beyond the previous takeoff extend the combo. Single-floor, backward or repeated-floor landings end it. A three-second timer also ends it. New record floors score 10 each; banking scores skipped floors × combo length × 25. Repeating low floors cannot farm score.
+- Camera pressure starts six seconds after the first jump and increases with elapsed play time and highest floor. Falling below the view ends the run.
+- Generated floors overlap their predecessor by at least 42 units, remain inside the tower, and narrow gradually. Every tenth floor is wide. No consumable platform is required for progress.
+- World width is fixed at 360 across devices. CSS pixels scale rendering, not physics. Simulation runs at 120Hz.
+- A fresh `tower` save section holds floor, score, combo and run records. Previous `climb` and memory-game data remain stored. Every five reached floors earn one shared coin, settled once per run.
+
+## Design references
+
+The original developer's announcement describes the base tower, shrinking platforms, increasing automatic scroll and combos that skip at least two floors:
+https://steamcommunity.com/app/3014860/announcements/?l=italian
+
+Developer press kit:
+https://www.icytower.com/presskit/
+
+All numerical tuning above is Zipzip-specific, not a claim to reproduce proprietary Icy Tower code or exact physics.
 
 ## Validation
 
-`npm test` and `npm run build` are gates in both CI and Pages deployment.
+`npm test`: momentum/apex, resting and held jumps, acceleration/braking, wall rebounds, coyote/buffer behavior, combo banking/expiry/anti-farming, camera death, deterministic simulation, and 100 seeded routes through 1000 floors.
 
-Tests cover continuous tempo and reach, 100 seeds × 4 widths through 2500m with 100ms reaction delay plus real horizontal acceleration, target braking, actual pickup/pad collisions, permanent route after removing hazards, shield recovery, actual simulated play beyond 1000m, and all canvas drawing branches.
-
-Local visual browser verification was unavailable in this environment (browser daemon startup failed; cloud browser blocks localhost). A production browser check follows deployment. Automated simulation does not substitute for subjective touchscreen/audio/haptic playtesting.
+`npm run build`: TypeScript and Vite production build. User requested to handle broad playtesting. No claim of completed mobile device, visual browser, audio or haptic testing.

@@ -1,13 +1,13 @@
 {
-  "name": "Zipzip",
+  "name": "Zipzip Buz Kulesi",
   "short_name": "Zipzip",
-  "description": "Parmağınla yönlendirdiğin dikey tırmanış oyunu",
+  "description": "Hız kazan, katları atla ve kombo yap: Zipzip Buz Kulesi",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f7f8fc",
-  "theme_color": "#f7f8fc",
+  "background_color": "#122039",
+  "theme_color": "#122039",
   "icons": [
     {
       "src": "./zipzip-icon.svg",

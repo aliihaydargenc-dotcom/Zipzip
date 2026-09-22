@@ -324,3 +324,39 @@ body:has(.climb-screen.active) { overflow: hidden; }
 body:has(.climb-screen.active) .app-shell { max-width: 560px; padding: max(6px, env(safe-area-inset-top)) 6px max(6px, env(safe-area-inset-bottom)); }
 body:has(.climb-screen.active) .climb-screen { height: calc(100dvh - max(6px, env(safe-area-inset-top)) - max(6px, env(safe-area-inset-bottom))); }
 .climb-stage { border-radius: 18px; }
+
+/* Buz Kulesi: tactile controls outside the clear playfield. */
+body:has(.climb-screen.active) { background: #122039; }
+body:has(.climb-screen.active) .app-shell { max-width: 480px; }
+.climb-screen.active { gap: 5px; }
+.climb-top { padding: 0; }
+.climb-top .game-stat { border-color: #32445d; background: #20324c; }
+.climb-top .game-stat span { color: #9eafc8; }
+.climb-top .game-stat strong { color: #e5f5ff; font-variant-numeric: tabular-nums; }
+.climb-top > .icon-btn { background: #20324c; color: #dceaff; border-color: #32445d; }
+.climb-stage { border: 1px solid #38546e; border-radius: 14px; background: #172d4b; box-shadow: none; }
+#climbCanvas { cursor: default; }
+.tower-combo { position: absolute; left: 18px; top: 14px; pointer-events: none; color: #90abc4; font-size: .68rem; letter-spacing: .07em; }
+.tower-combo strong { display: block; min-width: 110px; }
+.tower-combo.active { color: #ffdf82; }
+.combo-track { margin-top: 5px; height: 3px; border-radius: 3px; overflow: hidden; }
+.combo-track i { display: block; height: 100%; background: #ffdf82; transform-origin: left; transform: scaleX(0); }
+.tempo-hud { color: #a8c3d6; top: 15px; font-size: .61rem; }
+.drag-hint { bottom: 16px; background: #0a1b32c9; color: #d4edfa; }
+.tower-speed { height: 27px; flex: 0 0 27px; display: flex; align-items: center; gap: 10px; padding: 0 3px; }
+.tower-speed span { color: #b6d5e5; font-size: .58rem; font-weight: 800; width: 97px; }
+.tower-speed > div { flex: 1; height: 5px; border-radius: 5px; background: #273c55; overflow: hidden; }
+.tower-speed i { display: block; height: 100%; background: linear-gradient(90deg,#52d2dc,#ffde7e); transform-origin: left; transform: scaleX(0); }
+.tower-speed button { width: 36px; height: 27px; background: #263c55; border: 1px solid #38516a; color: #cceafb; border-radius: 8px; cursor: pointer; }
+.tower-controls { display: flex; justify-content: space-between; gap: 18px; flex: 0 0 65px; user-select: none; -webkit-user-select: none; }
+.tower-directions { display: flex; gap: 8px; width: 51%; }
+.tower-controls button { touch-action: none; -webkit-touch-callout: none; min-width: 0; flex: 1; border: 1px solid #48627e; border-bottom: 4px solid #0b1729; border-radius: 16px; color: #e1f3ff; background: linear-gradient(#304965,#243851); font-size: 1.5rem; font-weight: 850; box-shadow: inset 0 1px #6d8295; cursor: pointer; }
+.tower-controls .tower-jump { flex: 0 1 42%; background: linear-gradient(#ffdb87,#e7ad4e); color: #493615; border-color: #efca79; border-bottom-color: #966325; font-size: .85rem; letter-spacing: .05em; box-shadow: inset 0 1px #fff4ca; }
+.tower-jump span { font-size: 1.5rem; vertical-align: middle; margin-left: 10px; }
+.tower-controls button.pressed { filter: brightness(1.2); transform: translateY(2px); border-bottom-width: 2px; }
+.tower-keyboard { text-align: center; color: #89a0b9; font-size: .65rem; padding: 2px 0; pointer-events: none; }
+.tower-pause { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: #102239d9; color: #e3f4ff; z-index: 4; }
+.tower-pause[hidden] { display: none; }
+.tower-pause strong { font-size: 2rem; }
+@media (pointer: coarse) { .tower-keyboard { display: none; } }
+@media (max-height: 500px) { .tower-controls { flex-basis: 43px; } .tower-keyboard { display: none; } .climb-top .game-stat { padding: 2px; } .tower-speed { height: 20px; flex-basis: 20px; } }
