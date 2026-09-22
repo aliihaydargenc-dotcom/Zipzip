@@ -1,4 +1,5 @@
 import './styles.css';
+import { tempoAt, routeStep, steer, launchVelocity } from './climb-physics';
 
 type Screen = 'home' | 'climb' | 'game' | 'shop' | 'stats' | 'achievements' | 'settings';
 type PowerUp = 'joker' | 'freeze' | 'hint';
@@ -126,7 +127,7 @@ const AudioFx = {
   noise(type: 'crack' | 'break') {
     const ctx = this.ensureContext();
     if (!ctx || !this.master) return;
-    const duration = type === 'crack' ? 0.045 : 0.075;
+    const duration = type === 'crack' ? 0.035 : 0.05;
     const length = Math.max(1, Math.floor(ctx.sampleRate * duration));
     const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
     const channel = buffer.getChannelData(0);
@@ -139,14 +140,14 @@ const AudioFx = {
     const gain = ctx.createGain();
     source.buffer = buffer;
     filter.type = 'bandpass';
-    filter.frequency.value = type === 'crack' ? 2500 : 1750;
+    filter.frequency.value = type === 'crack' ? 3100 : 2300;
     filter.Q.value = 0.7;
     gain.gain.value = type === 'crack' ? 0.12 : 0.14;
     source.connect(filter).connect(gain).connect(this.master);
     source.start();
   },
 
-  play(type: 'flip' | 'match' | 'win' | 'bounce' | 'fail' | 'crack' | 'break' | 'pickup' | 'shield' | 'milestone') {
+  play(type: 'flip' | 'match' | 'win' | 'bounce' | 'fail' | 'crack' | 'break' | 'pickup' | 'shield' | 'milestone' | 'spring') {
     if (!Store.data.settings.sfx) return;
     const ctx = this.ensureContext();
     if (!ctx || !this.master) return;
@@ -161,7 +162,8 @@ const AudioFx = {
       flip: { tones: [620], duration: 0.07, volume: 0.045, wave: 'sine' },
       match: { tones: [760, 940], duration: 0.09, volume: 0.075, wave: 'triangle' },
       win: { tones: [660, 830, 1040], duration: 0.11, volume: 0.08, wave: 'triangle' },
-      bounce: { tones: [520], end: 790, duration: 0.085, volume: 0.095, wave: 'sine' },
+      bounce: { tones: [740], end: 1100, duration: 0.06, volume: 0.13, wave: 'triangle' },
+      spring: { tones: [620, 1240], end: 1900, duration: 0.12, volume: 0.16, wave: 'triangle' },
       fail: { tones: [330], end: 210, duration: 0.13, volume: 0.075, wave: 'triangle' },
       pickup: { tones: [880, 1180], duration: 0.065, volume: 0.085, wave: 'sine' },
       shield: { tones: [540, 720, 900], duration: 0.075, volume: 0.09, wave: 'triangle' },
@@ -175,7 +177,8 @@ const AudioFx = {
       osc.type = profile.wave;
       osc.frequency.setValueAtTime(frequency, start);
       if (profile.end && index === 0) osc.frequency.exponentialRampToValueAtTime(profile.end, start + profile.duration);
-      gain.gain.setValueAtTime(profile.volume, start);
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.linearRampToValueAtTime(profile.volume, start + 0.004);
       gain.gain.exponentialRampToValueAtTime(0.001, start + profile.duration);
       osc.connect(gain).connect(this.master!);
       osc.start(start);
@@ -189,7 +192,7 @@ function haptic(pattern: number | number[]) {
 }
 
 
-type PlatformKind = 'solid' | 'moving' | 'fragile';
+type PlatformKind = 'solid' | 'moving' | 'fragile' | 'spring' | 'boost';
 type PickupKind = 'coin' | 'spring' | 'shield';
 type Platform = {
   x: number;
@@ -202,6 +205,8 @@ type Platform = {
   broken: boolean;
   routeIndex: number;
   anchor: boolean;
+  originX?: number;
+  travel?: number;
 };
 type Pickup = { x: number; y: number; kind: PickupKind; collected: boolean };
 
@@ -215,18 +220,23 @@ const Climb = {
   height: 640,
   dpr: 1,
   cameraY: 0,
-  gravity: 1450,
-  baseJump: 640,
-  boostJump: 760,
+  gravity: 1500,
+  velocityX: 0,
+  elapsed: 0,
+  accumulator: 0,
+  launchFx: 0,
+  jumpGravity: 1500,
+  particles: [] as { x: number; y: number; vx: number; vy: number; life: number; color: string }[],
+  keys: new Set<string>(),
+  baseJump: 660,
   horizontalSpeed: 390,
-  dragSensitivity: 0.68,
+  dragSensitivity: 0.9,
   ball: { x: 180, y: 58, prevY: 58, vy: 0, radius: 13 },
   targetX: 180,
   platforms: [] as Platform[],
   pickups: [] as Pickup[],
   highestPlatformY: 0,
   routeIndex: 0,
-  lastPlatformKind: 'solid' as PlatformKind,
   safePoint: { x: 180, y: 30 },
   landings: 0,
   runHeight: 0,
@@ -247,14 +257,6 @@ const Climb = {
     if (delta > this.width / 2) delta -= this.width;
     if (delta < -this.width / 2) delta += this.width;
     return delta;
-  },
-
-  difficultyAt(y: number) {
-    const meters = Math.max(0, y - 30) / 10;
-    if (meters < 100) return 0;
-    if (meters < 250) return 0.28;
-    if (meters < 500) return 0.58;
-    return Math.min(1, 0.72 + (meters - 500) / 900);
   },
 
   start() {
@@ -278,6 +280,16 @@ const Climb = {
     cancelAnimationFrame(this.rafId);
     this.running = false;
     this.cameraY = 0;
+    this.velocityX = 0;
+    this.elapsed = 0;
+    this.accumulator = 0;
+    this.launchFx = 0;
+    this.jumpGravity = 1500;
+    this.baseJump = 660;
+    this.dragging = false;
+    this.pointerId = -1;
+    this.keys.clear();
+    this.particles = [];
     this.landings = 0;
     this.runHeight = 0;
     this.runCoins = 0;
@@ -285,7 +297,6 @@ const Climb = {
     this.shieldCharges = 0;
     this.nextMilestone = 100;
     this.routeIndex = 0;
-    this.lastPlatformKind = 'solid';
     this.pickups = [];
 
     const startWidth = Math.min(150, this.width * 0.42);
@@ -317,8 +328,8 @@ const Climb = {
     const oldWidth = this.width;
     const rect = this.canvas.getBoundingClientRect();
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
-    this.width = Math.max(280, rect.width);
-    this.height = Math.max(460, rect.height);
+    this.width = Math.max(1, rect.width);
+    this.height = Math.max(1, rect.height);
     this.canvas.width = Math.floor(this.width * this.dpr);
     this.canvas.height = Math.floor(this.height * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -328,7 +339,12 @@ const Climb = {
       this.ball.x = this.wrapX(this.ball.x * ratio);
       this.targetX = this.wrapX(this.targetX * ratio);
       this.safePoint.x = this.wrapX(this.safePoint.x * ratio);
-      this.platforms.forEach((platform) => { platform.x = Math.max(8, Math.min(this.width - platform.width - 8, platform.x * ratio)); });
+      this.platforms.forEach((platform) => {
+        platform.width *= ratio;
+        platform.x = Math.max(8, Math.min(this.width - platform.width - 8, platform.x * ratio));
+        if (platform.originX !== undefined) platform.originX = platform.x;
+        if (platform.travel !== undefined) platform.travel *= ratio;
+      });
       this.pickups.forEach((pickup) => { pickup.x = this.wrapX(pickup.x * ratio); });
     }
   },
@@ -339,7 +355,8 @@ const Climb = {
     canvas.dataset.dragBound = '1';
 
     canvas.addEventListener('pointerdown', (event) => {
-      if (!this.running) return;
+      if (!this.running || this.dragging || !event.isPrimary) return;
+      event.preventDefault();
       AudioFx.unlock();
       this.dragging = true;
       this.pointerId = event.pointerId;
@@ -352,7 +369,7 @@ const Climb = {
       if (!this.running || !this.dragging || event.pointerId !== this.pointerId) return;
       const dx = event.clientX - this.lastPointerX;
       this.lastPointerX = event.clientX;
-      if (Math.abs(dx) < 1.2) return;
+      event.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const scale = this.width / Math.max(1, rect.width);
       this.targetX = this.wrapX(this.targetX + dx * scale * this.dragSensitivity);
@@ -365,90 +382,114 @@ const Climb = {
     };
     canvas.addEventListener('pointerup', release);
     canvas.addEventListener('pointercancel', release);
+    canvas.addEventListener('lostpointercapture', release);
+    window.addEventListener('keydown', (event) => {
+      if (!this.running || !['ArrowLeft', 'ArrowRight', 'a', 'd'].includes(event.key)) return;
+      event.preventDefault();
+      this.keys.add(event.key);
+      byId('dragHint').classList.add('hidden');
+      AudioFx.unlock();
+    });
+    window.addEventListener('keyup', (event) => this.keys.delete(event.key));
+    window.addEventListener('blur', () => { this.keys.clear(); this.dragging = false; this.pointerId = -1; });
+    document.addEventListener('visibilitychange', () => { this.lastTime = performance.now(); this.accumulator = 0; this.keys.clear(); });
   },
 
   generatePlatforms(targetY: number) {
     let y = this.highestPlatformY;
-    const previous = this.platforms.at(-1);
+    const previous = this.platforms.filter(p => p.anchor).sort((a, b) => b.y - a.y)[0];
     let lastCenter = previous ? previous.x + previous.width / 2 : this.width / 2;
-
     while (y < targetY) {
-      this.routeIndex += 1;
-      const difficulty = this.difficultyAt(y);
-      const anchor = this.routeIndex % 5 === 0;
-      const forceSolid = anchor || this.routeIndex <= 4 || this.lastPlatformKind === 'fragile';
-
-      const safeGap = Math.min(92, 66 + difficulty * 12 + Math.random() * (12 + difficulty * 8));
-      y += safeGap;
-
-      const width = Math.max(82, 126 - difficulty * 30 + Math.random() * 16);
-      const maxShift = 78 + difficulty * 42;
-      const shift = (Math.random() * 2 - 1) * maxShift;
-      let center = this.wrapX(lastCenter + shift);
-      const half = width / 2;
-      center = Math.max(half + 9, Math.min(this.width - half - 9, center));
-      const x = center - half;
-
-      const fragileChance = this.routeIndex > 4 ? 0.09 + difficulty * 0.13 : 0;
-      const movingChance = this.routeIndex > 7 ? 0.08 + difficulty * 0.16 : 0;
-      const fragile = !forceSolid && Math.random() < fragileChance;
-      const moving = !forceSolid && !fragile && Math.random() < movingChance;
-      const kind: PlatformKind = fragile ? 'fragile' : moving ? 'moving' : 'solid';
-      const vx = moving ? (Math.random() < 0.5 ? -1 : 1) * (22 + difficulty * 26) : 0;
-
-      const platform: Platform = {
-        x,
-        y,
-        width,
-        height: anchor ? 12 : 10,
-        vx,
-        kind,
-        breakTimer: 0,
-        broken: false,
-        routeIndex: this.routeIndex,
-        anchor,
-      };
-      this.platforms.push(platform);
-      this.lastPlatformKind = kind;
-      lastCenter = center;
-
-      if (anchor || kind === 'solid') {
-        const roll = Math.random();
-        if (roll < 0.34) this.pickups.push({ x: center, y: y + 34, kind: 'coin', collected: false });
-        else if (this.routeIndex > 6 && roll < 0.405) this.pickups.push({ x: center, y: y + 35, kind: 'spring', collected: false });
-        else if (this.routeIndex > 10 && roll < 0.445) this.pickups.push({ x: center, y: y + 35, kind: 'shield', collected: false });
+      this.routeIndex++;
+      const step = routeStep(y, lastCenter, this.width);
+      y = step.y;
+      // Every row has a permanent, reachable landing. Risk platforms are optional detours.
+      const pad = this.routeIndex > 12 && this.routeIndex % 13 === 0;
+      this.platforms.push({ x: step.center - step.width / 2, y, width: step.width,
+        height: 13, vx: 0, kind: pad ? 'spring' : 'solid', breakTimer: 0,
+        broken: false, routeIndex: this.routeIndex, anchor: true });
+      const roll = Math.random();
+      if (roll < 0.27) this.pickups.push({ x: step.center, y: y + 32, kind: 'coin', collected: false });
+      else if (this.routeIndex > 5 && roll < 0.32) this.pickups.push({ x: step.center, y: y + 34, kind: 'spring', collected: false });
+      else if (this.routeIndex > 9 && roll < 0.35) this.pickups.push({ x: step.center, y: y + 34, kind: 'shield', collected: false });
+      if (this.routeIndex > 5 && Math.random() < 0.24 + step.difficulty * 0.48) {
+        const w = 56 + Math.random() * 16;
+        const side = step.center < this.width / 2 ? 1 : -1;
+        const x = step.center + side * (step.width / 2 + w / 2 + 18) - w / 2;
+        if (x >= 10 && x + w <= this.width - 10) {
+          const kind: PlatformKind = step.difficulty > 0.3 && Math.random() < 0.22 ? 'boost'
+            : step.difficulty > 0.15 && Math.random() < 0.55 ? 'moving' : 'fragile';
+          this.platforms.push({ x, y: y + 24, width: w, height: 12,
+            vx: kind === 'moving' ? (Math.random() < 0.5 ? -1 : 1) : 0,
+            originX: x, travel: 12, kind, breakTimer: 0, broken: false,
+            routeIndex: this.routeIndex, anchor: false });
+          this.pickups.push({ x: x + w / 2, y: y + 56, kind: 'coin', collected: false });
+        }
       }
+      lastCenter = step.center;
     }
     this.highestPlatformY = y;
   },
 
   loop(time: number) {
     if (!this.running) return;
-    const dt = Math.min(0.028, Math.max(0.001, (time - this.lastTime) / 1000));
+    this.accumulator += Math.min(0.1, Math.max(0, (time - this.lastTime) / 1000));
     this.lastTime = time;
-    this.update(dt);
+    while (this.accumulator >= 1 / 120 && this.running) {
+      this.update(1 / 120);
+      this.accumulator -= 1 / 120;
+    }
     this.draw();
-    this.rafId = requestAnimationFrame((next) => this.loop(next));
+    if (this.running) this.rafId = requestAnimationFrame((next) => this.loop(next));
+  },
+
+  burst(x: number, y: number, color: string, count = 16) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.PI * 2 * i / count;
+      this.particles.push({ x, y, vx: Math.cos(angle) * 100, vy: Math.sin(angle) * 130,
+        life: 0.45, color });
+    }
+  },
+
+  launch(multiplier = 1.65) {
+    const meters = Math.max(0, this.ball.y - 43) / 10;
+    this.ball.vy = Math.max(this.ball.vy, launchVelocity(meters, multiplier));
+    this.jumpGravity = tempoAt(meters).gravity;
+    this.launchFx = 0.65;
+    this.burst(this.ball.x, this.ball.y - 10, '#8870f8', 22);
+    AudioFx.play('spring');
+    haptic([18, 20, 30]);
   },
 
   update(dt: number) {
     const ball = this.ball;
 
+    this.elapsed += dt;
+    this.launchFx = Math.max(0, this.launchFx - dt);
+    const tempo = tempoAt(Math.max(0, ball.y - 43) / 10);
+    this.baseJump = tempo.jump;
+    this.gravity = tempo.gravity;
+    this.horizontalSpeed = tempo.horizontal;
+    const direction = Number(this.keys.has('ArrowRight') || this.keys.has('d')) - Number(this.keys.has('ArrowLeft') || this.keys.has('a'));
+    if (direction) this.targetX = this.wrapX(this.targetX + direction * this.horizontalSpeed * dt);
     const dx = this.wrappedDelta(ball.x, this.targetX);
-    if (Math.abs(dx) > 0.35) {
-      const maxStep = this.horizontalSpeed * dt;
-      ball.x = this.wrapX(ball.x + Math.max(-maxStep, Math.min(maxStep, dx)));
-    }
-
+    const movement = steer(this.velocityX, dx, dt, Math.max(0, ball.y - 43) / 10);
+    this.velocityX = movement.vx;
+    ball.x = this.wrapX(ball.x + movement.step);
     ball.prevY = ball.y;
-    ball.vy -= this.gravity * dt;
-    ball.y += ball.vy * dt;
+    // Freeze gravity for this flight; crossing an altitude boundary cannot shorten the jump.
+    ball.y += ball.vy * dt - 0.5 * this.jumpGravity * dt * dt;
+    ball.vy -= this.jumpGravity * dt;
+    this.particles = this.particles.filter(p => p.life > 0);
+    for (const p of this.particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 450 * dt; }
 
     for (const platform of this.platforms) {
       if (platform.vx !== 0 && !platform.broken) {
-        platform.x += platform.vx * dt;
-        if (platform.x <= 8 || platform.x + platform.width >= this.width - 8) {
-          platform.x = Math.max(8, Math.min(this.width - platform.width - 8, platform.x));
+        platform.x += platform.vx * tempo.moving * dt;
+        const lo = Math.max(8, (platform.originX ?? platform.x) - (platform.travel ?? 12));
+        const hi = Math.min(this.width - platform.width - 8, (platform.originX ?? platform.x) + (platform.travel ?? 12));
+        if (platform.x <= lo || platform.x >= hi) {
+          platform.x = Math.max(lo, Math.min(hi, platform.x));
           platform.vx *= -1;
         }
       }
@@ -456,6 +497,7 @@ const Climb = {
         platform.breakTimer -= dt;
         if (platform.breakTimer <= 0) {
           platform.broken = true;
+          this.burst(platform.x + platform.width / 2, platform.y, '#db9954', 12);
           AudioFx.play('break');
         }
       }
@@ -464,7 +506,7 @@ const Climb = {
     if (ball.vy < 0) {
       const previousBottom = ball.prevY - ball.radius;
       const nextBottom = ball.y - ball.radius;
-      for (const platform of this.platforms) {
+      for (const platform of [...this.platforms].sort((a, b) => b.y - a.y)) {
         if (platform.broken) continue;
         const hitRadius = ball.radius * 0.72;
         const horizontalHit = [ball.x, ball.x - this.width, ball.x + this.width].some((centerX) =>
@@ -475,7 +517,9 @@ const Climb = {
 
         ball.y = platform.y + ball.radius;
         const boosted = this.springJumps > 0;
-        ball.vy = boosted ? this.boostJump : this.baseJump;
+        const landingTempo = tempoAt(Math.max(0, ball.y - 43) / 10);
+        this.jumpGravity = landingTempo.gravity;
+        ball.vy = landingTempo.jump * (boosted ? 1.18 : 1);
         if (boosted) this.springJumps -= 1;
         this.landings += 1;
         Store.data.climb.totalLandings += 1;
@@ -484,12 +528,13 @@ const Climb = {
           this.safePoint = { x: this.wrapX(platform.x + platform.width / 2), y: platform.y };
         }
 
-        AudioFx.play('bounce');
-        if (platform.kind === 'fragile' && platform.breakTimer <= 0) {
+        if (platform.kind === 'spring' || platform.kind === 'boost') this.launch(platform.kind === 'boost' ? 1.9 : 1.5);
+        else AudioFx.play('bounce');
+        if ((platform.kind === 'fragile' || platform.kind === 'boost') && platform.breakTimer <= 0) {
           platform.breakTimer = 0.22;
           AudioFx.play('crack');
-          haptic([6, 12, 4]);
-        } else {
+          if (platform.kind !== 'boost') haptic([6, 12, 4]);
+        } else if (platform.kind !== 'spring' && platform.kind !== 'boost') {
           haptic(6);
         }
         break;
@@ -507,29 +552,28 @@ const Climb = {
         Store.data.coins += 3;
         AudioFx.play('pickup');
       } else if (pickup.kind === 'spring') {
-        this.springJumps = Math.max(this.springJumps, 3);
-        AudioFx.play('pickup');
-        toast('Yüksek zıplama: 3 sıçrama');
+        this.springJumps = Math.max(this.springJumps, 2);
+        this.launch();
       } else {
         this.shieldCharges = 1;
         AudioFx.play('shield');
-        toast('Kurtarma kalkanı hazır');
+        this.burst(ball.x, ball.y, '#36b9c9');
       }
       Store.save();
-      haptic(8);
+      if (pickup.kind !== 'spring') haptic(8);
     }
 
     const desiredCamera = Math.max(this.cameraY, ball.y - this.height * 0.46);
-    this.cameraY += (desiredCamera - this.cameraY) * Math.min(1, dt * 6.2);
+    this.cameraY += (desiredCamera - this.cameraY) * Math.min(1, dt * (tempo.camera + (this.launchFx > 0 ? 8 : 0)));
     this.runHeight = Math.max(this.runHeight, Math.floor(Math.max(0, ball.y - 43) / 10));
 
     if (this.runHeight >= this.nextMilestone) {
       AudioFx.play('milestone');
-      toast(`${this.nextMilestone} m!`);
+
       this.nextMilestone += 100;
     }
 
-    this.generatePlatforms(this.cameraY + this.height + 850);
+    this.generatePlatforms(this.cameraY + this.height + 600 * tempo.speed);
     this.platforms = this.platforms.filter((platform) => !platform.broken && platform.y > this.cameraY - 190);
     this.pickups = this.pickups.filter((pickup) => !pickup.collected && pickup.y > this.cameraY - 140);
 
@@ -545,30 +589,19 @@ const Climb = {
 
   rescue() {
     this.shieldCharges = 0;
-    const rescueY = Math.max(this.safePoint.y, this.cameraY + 72);
-    const width = Math.min(150, this.width * 0.44);
-    const center = this.wrapX(this.safePoint.x);
-    const x = Math.max(8, Math.min(this.width - width - 8, center - width / 2));
-    const platform: Platform = {
-      x,
-      y: rescueY,
-      width,
-      height: 12,
-      vx: 0,
-      kind: 'solid',
-      breakTimer: 0,
-      broken: false,
-      routeIndex: this.routeIndex,
-      anchor: true,
-    };
-    this.platforms.push(platform);
-    this.safePoint = { x: x + width / 2, y: rescueY };
-    this.cameraY = Math.max(0, rescueY - this.height * 0.35);
+    const platform = this.platforms.filter(p => p.anchor && !p.broken && p.y > this.cameraY + 30)
+      .sort((a, b) => a.y - b.y)[0];
+    if (!platform) { this.fail(); return; }
+    this.safePoint = { x: platform.x + platform.width / 2, y: platform.y };
+    this.cameraY = Math.max(0, platform.y - this.height * 0.25);
     this.ball.x = this.safePoint.x;
     this.targetX = this.ball.x;
-    this.ball.y = rescueY + this.ball.radius;
+    this.velocityX = 0;
+    this.ball.y = platform.y + this.ball.radius;
     this.ball.prevY = this.ball.y;
-    this.ball.vy = this.baseJump;
+    const tempo = tempoAt(Math.max(0, this.ball.y - 43) / 10);
+    this.ball.vy = tempo.jump;
+    this.jumpGravity = tempo.gravity;
     AudioFx.play('shield');
     haptic([20, 25, 20]);
     toast('Kalkan seni kurtardı');
@@ -585,14 +618,18 @@ const Climb = {
     if (bestEl) bestEl.textContent = `${Math.max(Store.data.climb.bestHeight, this.runHeight)} m`;
     if (stepEl) stepEl.textContent = String(this.landings);
     if (springEl) {
-      springEl.textContent = this.springJumps > 0 ? `↑ ×${this.springJumps}` : '↑ —';
+      springEl.textContent = this.springJumps > 0 ? `Yay ×${this.springJumps}` : '';
+      springEl.hidden = this.springJumps === 0;
       springEl.classList.toggle('active', this.springJumps > 0);
     }
     if (shieldEl) {
-      shieldEl.textContent = this.shieldCharges > 0 ? '◆ 1' : '◆ —';
+      shieldEl.textContent = 'Kalkan';
+      shieldEl.hidden = this.shieldCharges === 0;
       shieldEl.classList.toggle('active', this.shieldCharges > 0);
     }
-    if (coinEl) coinEl.textContent = `● ${this.runCoins}`;
+    const tempoEl = document.getElementById('tempoHud');
+    if (tempoEl) tempoEl.textContent = tempoAt(this.runHeight).label;
+    if (coinEl) coinEl.textContent = `Altın ${this.runCoins}`;
   },
 
   draw() {
@@ -623,46 +660,75 @@ const Climb = {
       if (platform.broken) continue;
       const sy = this.height - (platform.y - this.cameraY);
       if (sy < -30 || sy > this.height + 30) continue;
-      const crumble = platform.breakTimer > 0 ? 1 - platform.breakTimer / 0.22 : 0;
-      ctx.globalAlpha = platform.breakTimer > 0 ? Math.max(0.5, 1 - crumble * 0.45) : 1;
-      ctx.fillStyle = platform.kind === 'fragile' ? '#d99b52' : platform.kind === 'moving' ? '#43afa4' : platform.anchor ? '#4f5870' : '#596275';
-      roundRect(ctx, platform.x, sy + crumble * 2, platform.width, Math.max(6, platform.height - crumble * 2), 6);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.58)';
-      roundRect(ctx, platform.x + 6, sy + 2 + crumble * 2, Math.max(0, platform.width - 12), 2, 1);
-      ctx.fill();
-
-      if (platform.kind === 'fragile') {
-        ctx.strokeStyle = 'rgba(83,49,21,.7)';
-        ctx.lineWidth = 1.25;
-        const mid = platform.x + platform.width * 0.5;
-        ctx.beginPath();
-        ctx.moveTo(mid - 12, sy + 1);
-        ctx.lineTo(mid - 4, sy + 6);
-        ctx.lineTo(mid + 1, sy + 2);
-        ctx.lineTo(mid + 10 + crumble * 4, sy + 8);
-        ctx.stroke();
+      const breaking = platform.breakTimer > 0;
+      const shake = breaking ? Math.sin(this.elapsed * 95) * 2 : 0;
+      const x = platform.x + shake;
+      const colors = { solid: '#526781', moving: '#21a99f', fragile: '#d7974c', spring: '#8060db', boost: '#e56578' };
+      ctx.save();
+      ctx.shadowColor = colors[platform.kind] + '44'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
+      ctx.fillStyle = colors[platform.kind];
+      roundRect(ctx, x, sy, platform.width, platform.height, 5); ctx.fill();
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.fillStyle = 'rgba(255,255,255,.65)';
+      roundRect(ctx, x + 4, sy + 1, platform.width - 8, 3, 2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+      if (platform.kind === 'moving') {
+        for (let i = 0; i < 3; i++) {
+          const mx = x + platform.width / 2 + (i - 1) * 14;
+          const d = Math.sign(platform.vx);
+          ctx.beginPath(); ctx.moveTo(mx - d * 3, sy + 5); ctx.lineTo(mx + d * 2, sy + 8); ctx.lineTo(mx - d * 3, sy + 11); ctx.stroke();
+        }
+      } else if (platform.kind === 'fragile') {
+        ctx.strokeStyle = '#794621';
+        for (const offset of [0.3, 0.67]) {
+          const mx = x + platform.width * offset;
+          ctx.beginPath(); ctx.moveTo(mx - 4, sy); ctx.lineTo(mx + 2, sy + 5); ctx.lineTo(mx - 2, sy + 8); ctx.lineTo(mx + 4, sy + 12); ctx.stroke();
+        }
+      } else if (platform.kind === 'spring' || platform.kind === 'boost') {
+        const mx = x + platform.width / 2;
+        this.drawIcon(platform.kind === 'boost' ? 'boost' : 'spring', mx, sy - 7, 0.7);
+        ctx.fillStyle = '#fff';
+        roundRect(ctx, mx - 18, sy - 2, 36, 4, 2); ctx.fill();
+      } else {
+        ctx.fillStyle = '#b6cadb';
+        for (const mx of [x + 9, x + platform.width - 9]) { ctx.beginPath(); ctx.arc(mx, sy + 8, 1.5, 0, Math.PI * 2); ctx.fill(); }
       }
-      ctx.globalAlpha = 1;
+      ctx.restore();
     }
 
     for (const pickup of this.pickups) {
       if (pickup.collected) continue;
       const sy = this.height - (pickup.y - this.cameraY);
       if (sy < -30 || sy > this.height + 30) continue;
-      const radius = pickup.kind === 'coin' ? 8 : 11;
-      ctx.fillStyle = pickup.kind === 'coin' ? '#f4bd44' : pickup.kind === 'spring' ? '#7868e6' : '#47b8c4';
-      ctx.beginPath();
-      ctx.arc(pickup.x, sy, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `800 ${pickup.kind === 'coin' ? 10 : 13}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(pickup.kind === 'coin' ? '●' : pickup.kind === 'spring' ? '↑' : '◆', pickup.x, sy + 0.5);
+      const color = pickup.kind === 'coin' ? '#f1ba40' : pickup.kind === 'spring' ? '#8966ed' : '#29adc3';
+      ctx.save();
+      ctx.globalAlpha = 0.12 + 0.06 * Math.sin(this.elapsed * 4 + pickup.y);
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(pickup.x, sy, 21 + Math.sin(this.elapsed * 4) * 2, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1; ctx.shadowColor = color; ctx.shadowBlur = 9;
+      this.drawIcon(pickup.kind, pickup.x, sy, 1);
+      ctx.restore();
     }
+    for (const p of this.particles) {
+      ctx.globalAlpha = Math.max(0, p.life / 0.45); ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 2, this.height - (p.y - this.cameraY), 4, 4);
+    }
+    ctx.globalAlpha = 1;
 
     const ballY = this.height - (this.ball.y - this.cameraY);
+    if (this.launchFx > 0) {
+      ctx.strokeStyle = '#9578f5'; ctx.lineWidth = 3;
+      for (let i = 0; i < 3; i++) {
+        ctx.globalAlpha = this.launchFx * (0.7 - i * 0.15);
+        ctx.beginPath(); ctx.moveTo(this.ball.x + (i - 1) * 8, ballY + 18);
+        ctx.lineTo(this.ball.x + (i - 1) * 11, ballY + 40 + i * 12); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (this.shieldCharges) {
+      ctx.strokeStyle = '#29adc3'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(this.ball.x, ballY, 20, 0, Math.PI * 2); ctx.stroke();
+    }
     const drawBall = (x: number) => {
       const glow = ctx.createRadialGradient(x - 5, ballY - 6, 2, x, ballY, this.ball.radius * 1.5);
       glow.addColorStop(0, '#ffffff');
@@ -681,6 +747,31 @@ const Climb = {
     if (this.ball.x > this.width - this.ball.radius) drawBall(this.ball.x - this.width);
   },
 
+  drawIcon(kind: PickupKind | 'boost', x: number, y: number, scale: number) {
+    const ctx = this.ctx!;
+    ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
+    ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    if (kind === 'coin') {
+      ctx.fillStyle = '#f9c550'; ctx.strokeStyle = '#c88b24';
+      ctx.beginPath(); ctx.ellipse(0, 0, 9, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#fff1ab'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(0, 0, 5.5, 7.5, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(0, 4); ctx.stroke();
+    } else if (kind === 'shield') {
+      ctx.fillStyle = '#32b3c6'; ctx.strokeStyle = '#e3ffff';
+      ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(10, -8); ctx.lineTo(8, 4);
+      ctx.quadraticCurveTo(6, 10, 0, 13); ctx.quadraticCurveTo(-6, 10, -8, 4); ctx.lineTo(-10, -8); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(0, 6); ctx.stroke();
+    } else {
+      ctx.strokeStyle = kind === 'boost' ? '#ffcad4' : '#7550d7';
+      ctx.beginPath(); ctx.moveTo(-9, 10); ctx.lineTo(9, 10); ctx.moveTo(-7, 6);
+      ctx.lineTo(7, 2); ctx.lineTo(-7, -2); ctx.lineTo(7, -6); ctx.stroke();
+      ctx.fillStyle = kind === 'boost' ? '#e56578' : '#8763e5';
+      ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(9, -8); ctx.lineTo(-9, -8); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  },
+
   fail() {
     if (!this.running) return;
     this.running = false;
@@ -697,9 +788,15 @@ const Climb = {
     cancelAnimationFrame(this.rafId);
     this.dragging = false;
     closeResult();
+    this.keys.clear();
+    Store.data.climb.bestHeight = Math.max(Store.data.climb.bestHeight, this.runHeight);
+    Store.save();
     navigate('home');
   },
 };
+
+// Development-only hook for deterministic browser regression checks; removed by Vite in production.
+if (import.meta.env.DEV) Object.assign(window, { __zipzip: Climb });
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
   const r = Math.min(radius, width / 2, height / 2);
@@ -966,7 +1063,7 @@ app.innerHTML = `
           <span id="shieldHud">◆ —</span>
           <span id="runCoinHud">● 0</span>
         </div>
-        <div class="drag-hint" id="dragHint">Sürükle · kenarlardan geçebilirsin</div>
+        <div class="tempo-hud" id="tempoHud">Isınma</div><div class="drag-hint" id="dragHint">Sürükle ve yönlendir</div>
       </div>
     </section>
 

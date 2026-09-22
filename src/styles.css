@@ -313,3 +313,14 @@ button:focus-visible { outline: 3px solid rgba(108, 92, 231, .25); outline-offse
   .climb-top .game-stat strong { font-size: .82rem; }
   .climb-bonus-hud span { min-width: 38px; padding: 5px 7px; font-size: .68rem; }
 }
+
+/* Gameplay overlays never intercept a gesture, including transient messages. */
+.toast, .climb-bonus-hud, .climb-bonus-hud *, .tempo-hud, .drag-hint { pointer-events: none; }
+.drag-hint.hidden { display: none; }
+.climb-bonus-hud [hidden] { display: none; }
+.tempo-hud { position: absolute; right: 14px; top: 14px; color: #667591; font-size: .72rem; font-weight: 800; letter-spacing: .04em; }
+.climb-screen.active { min-height: 0; }
+body:has(.climb-screen.active) { overflow: hidden; }
+body:has(.climb-screen.active) .app-shell { max-width: 560px; padding: max(6px, env(safe-area-inset-top)) 6px max(6px, env(safe-area-inset-bottom)); }
+body:has(.climb-screen.active) .climb-screen { height: calc(100dvh - max(6px, env(safe-area-inset-top)) - max(6px, env(safe-area-inset-bottom))); }
+.climb-stage { border-radius: 18px; }

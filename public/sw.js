@@ -1,4 +1,4 @@
-const CACHE = 'zipzip-v5-core-gameplay-1';
+const CACHE = 'zipzip-v6-tempo-routes';
 const scope = self.registration.scope;
 const shell = [scope, new URL('manifest.webmanifest', scope).href, new URL('zipzip-icon.svg', scope).href];
 

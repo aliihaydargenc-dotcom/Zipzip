@@ -1,5 +1,6 @@
 interface ImportMetaEnv {
   readonly BASE_URL: string;
+  readonly DEV: boolean;
 }
 
 interface ImportMeta {
@@ -7,3 +8,5 @@ interface ImportMeta {
 }
 
 declare module '*.css';
+
+/// <reference types="vite/client" />
