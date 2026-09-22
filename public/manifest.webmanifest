@@ -1,0 +1,19 @@
+{
+  "name": "Zipzip",
+  "short_name": "Zipzip",
+  "description": "Mobil hafıza eşleştirme oyunu",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f7f8fc",
+  "theme_color": "#f7f8fc",
+  "icons": [
+    {
+      "src": "./zipzip-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
