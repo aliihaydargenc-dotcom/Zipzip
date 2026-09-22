@@ -104,11 +104,17 @@ function shuffle<T>(values: T[]): T[] {
 
 const AudioFx = {
   ctx: null as AudioContext | null,
+  master: null as GainNode | null,
 
   ensureContext() {
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return null;
-    this.ctx ??= new AudioContextClass();
+    if (!this.ctx) {
+      this.ctx = new AudioContextClass();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.9;
+      this.master.connect(this.ctx.destination);
+    }
     return this.ctx;
   },
 
@@ -119,31 +125,31 @@ const AudioFx = {
 
   noise(type: 'crack' | 'break') {
     const ctx = this.ensureContext();
-    if (!ctx) return;
-    const duration = type === 'crack' ? 0.075 : 0.14;
-    const length = Math.floor(ctx.sampleRate * duration);
+    if (!ctx || !this.master) return;
+    const duration = type === 'crack' ? 0.045 : 0.075;
+    const length = Math.max(1, Math.floor(ctx.sampleRate * duration));
     const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
     const channel = buffer.getChannelData(0);
     for (let i = 0; i < length; i += 1) {
       const life = 1 - i / length;
-      channel[i] = (Math.random() * 2 - 1) * Math.pow(life, type === 'crack' ? 2.6 : 1.55);
+      channel[i] = (Math.random() * 2 - 1) * Math.pow(life, type === 'crack' ? 2.8 : 2.1);
     }
     const source = ctx.createBufferSource();
     const filter = ctx.createBiquadFilter();
     const gain = ctx.createGain();
     source.buffer = buffer;
     filter.type = 'bandpass';
-    filter.frequency.value = type === 'crack' ? 1650 : 920;
-    filter.Q.value = type === 'crack' ? 0.9 : 0.55;
-    gain.gain.value = type === 'crack' ? 0.045 : 0.065;
-    source.connect(filter).connect(gain).connect(ctx.destination);
+    filter.frequency.value = type === 'crack' ? 2500 : 1750;
+    filter.Q.value = 0.7;
+    gain.gain.value = type === 'crack' ? 0.12 : 0.14;
+    source.connect(filter).connect(gain).connect(this.master);
     source.start();
   },
 
-  play(type: 'flip' | 'match' | 'win' | 'bounce' | 'fail' | 'crack' | 'break') {
+  play(type: 'flip' | 'match' | 'win' | 'bounce' | 'fail' | 'crack' | 'break' | 'pickup' | 'shield' | 'milestone') {
     if (!Store.data.settings.sfx) return;
     const ctx = this.ensureContext();
-    if (!ctx) return;
+    if (!ctx || !this.master) return;
     if (ctx.state === 'suspended') void ctx.resume();
     if (type === 'crack' || type === 'break') {
       this.noise(type);
@@ -151,22 +157,29 @@ const AudioFx = {
     }
 
     const now = ctx.currentTime;
-    const tones = type === 'win' ? [523, 659, 784] : type === 'match' ? [740] : type === 'bounce' ? [310] : type === 'fail' ? [185] : [410];
-    tones.forEach((frequency, index) => {
+    const profiles: Record<Exclude<typeof type, 'crack' | 'break'>, { tones: number[]; end?: number; duration: number; volume: number; wave: OscillatorType }> = {
+      flip: { tones: [620], duration: 0.07, volume: 0.045, wave: 'sine' },
+      match: { tones: [760, 940], duration: 0.09, volume: 0.075, wave: 'triangle' },
+      win: { tones: [660, 830, 1040], duration: 0.11, volume: 0.08, wave: 'triangle' },
+      bounce: { tones: [520], end: 790, duration: 0.085, volume: 0.095, wave: 'sine' },
+      fail: { tones: [330], end: 210, duration: 0.13, volume: 0.075, wave: 'triangle' },
+      pickup: { tones: [880, 1180], duration: 0.065, volume: 0.085, wave: 'sine' },
+      shield: { tones: [540, 720, 900], duration: 0.075, volume: 0.09, wave: 'triangle' },
+      milestone: { tones: [700, 920, 1180], duration: 0.09, volume: 0.085, wave: 'sine' },
+    };
+    const profile = profiles[type as Exclude<typeof type, 'crack' | 'break'>];
+    profile.tones.forEach((frequency, index) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      const start = now + index * 0.11;
-      osc.type = type === 'flip' || type === 'bounce' ? 'sine' : type === 'fail' ? 'sawtooth' : 'triangle';
+      const start = now + index * 0.055;
+      osc.type = profile.wave;
       osc.frequency.setValueAtTime(frequency, start);
-      if (type === 'bounce') osc.frequency.exponentialRampToValueAtTime(455, start + 0.085);
-      if (type === 'fail') osc.frequency.exponentialRampToValueAtTime(92, start + 0.22);
-      const volume = type === 'flip' ? 0.022 : type === 'bounce' ? 0.03 : type === 'fail' ? 0.045 : 0.055;
-      const duration = type === 'fail' ? 0.24 : type === 'bounce' ? 0.105 : 0.16;
-      gain.gain.setValueAtTime(volume, start);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
-      osc.connect(gain).connect(ctx.destination);
+      if (profile.end && index === 0) osc.frequency.exponentialRampToValueAtTime(profile.end, start + profile.duration);
+      gain.gain.setValueAtTime(profile.volume, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + profile.duration);
+      osc.connect(gain).connect(this.master!);
       osc.start(start);
-      osc.stop(start + duration + 0.02);
+      osc.stop(start + profile.duration + 0.015);
     });
   },
 };
@@ -176,7 +189,21 @@ function haptic(pattern: number | number[]) {
 }
 
 
-type Platform = { x: number; y: number; width: number; height: number; vx: number; kind: 'solid' | 'moving' | 'fragile'; breakTimer: number; broken: boolean };
+type PlatformKind = 'solid' | 'moving' | 'fragile';
+type PickupKind = 'coin' | 'spring' | 'shield';
+type Platform = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  vx: number;
+  kind: PlatformKind;
+  breakTimer: number;
+  broken: boolean;
+  routeIndex: number;
+  anchor: boolean;
+};
+type Pickup = { x: number; y: number; kind: PickupKind; collected: boolean };
 
 const Climb = {
   canvas: null as HTMLCanvasElement | null,
@@ -188,14 +215,47 @@ const Climb = {
   height: 640,
   dpr: 1,
   cameraY: 0,
+  gravity: 1450,
+  baseJump: 640,
+  boostJump: 760,
+  horizontalSpeed: 390,
+  dragSensitivity: 0.68,
   ball: { x: 180, y: 58, prevY: 58, vy: 0, radius: 13 },
+  targetX: 180,
   platforms: [] as Platform[],
+  pickups: [] as Pickup[],
   highestPlatformY: 0,
+  routeIndex: 0,
+  lastPlatformKind: 'solid' as PlatformKind,
+  safePoint: { x: 180, y: 30 },
   landings: 0,
   runHeight: 0,
+  runCoins: 0,
+  springJumps: 0,
+  shieldCharges: 0,
+  nextMilestone: 100,
   dragging: false,
   pointerId: -1,
   lastPointerX: 0,
+
+  wrapX(value: number) {
+    return ((value % this.width) + this.width) % this.width;
+  },
+
+  wrappedDelta(from: number, to: number) {
+    let delta = to - from;
+    if (delta > this.width / 2) delta -= this.width;
+    if (delta < -this.width / 2) delta += this.width;
+    return delta;
+  },
+
+  difficultyAt(y: number) {
+    const meters = Math.max(0, y - 30) / 10;
+    if (meters < 100) return 0;
+    if (meters < 250) return 0.28;
+    if (meters < 500) return 0.58;
+    return Math.min(1, 0.72 + (meters - 500) / 900);
+  },
 
   start() {
     activeMode = 'climb';
@@ -207,8 +267,8 @@ const Climb = {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) throw new Error('Canvas context oluşturulamadı.');
     this.bindPointer();
-    this.reset();
     this.resize();
+    this.reset();
     this.running = true;
     this.lastTime = performance.now();
     this.rafId = requestAnimationFrame((time) => this.loop(time));
@@ -220,17 +280,41 @@ const Climb = {
     this.cameraY = 0;
     this.landings = 0;
     this.runHeight = 0;
+    this.runCoins = 0;
+    this.springJumps = 0;
+    this.shieldCharges = 0;
+    this.nextMilestone = 100;
+    this.routeIndex = 0;
+    this.lastPlatformKind = 'solid';
+    this.pickups = [];
+
     const startWidth = Math.min(150, this.width * 0.42);
     const startX = (this.width - startWidth) / 2;
-    this.ball = { x: this.width / 2, y: 58, prevY: 58, vy: 620, radius: 13 };
-    this.platforms = [{ x: startX, y: 30, width: startWidth, height: 12, vx: 0, kind: 'solid', breakTimer: 0, broken: false }];
-    this.highestPlatformY = 30;
-    this.generatePlatforms(1600);
+    const startY = 30;
+    this.ball = { x: this.width / 2, y: startY + 13, prevY: startY + 13, vy: this.baseJump, radius: 13 };
+    this.targetX = this.ball.x;
+    this.safePoint = { x: this.ball.x, y: startY };
+    this.platforms = [{
+      x: startX,
+      y: startY,
+      width: startWidth,
+      height: 12,
+      vx: 0,
+      kind: 'solid',
+      breakTimer: 0,
+      broken: false,
+      routeIndex: 0,
+      anchor: true,
+    }];
+    this.highestPlatformY = startY;
+    this.generatePlatforms(this.height + 850);
     this.updateHud();
+    byId('dragHint').classList.remove('hidden');
   },
 
   resize() {
     if (!this.canvas || !this.ctx) return;
+    const oldWidth = this.width;
     const rect = this.canvas.getBoundingClientRect();
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.width = Math.max(280, rect.width);
@@ -238,9 +322,15 @@ const Climb = {
     this.canvas.width = Math.floor(this.width * this.dpr);
     this.canvas.height = Math.floor(this.height * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    const currentX = this.ball.x || this.width / 2;
-    this.ball.x = ((currentX % this.width) + this.width) % this.width;
-    if (this.platforms.length === 0) this.reset();
+
+    if (oldWidth > 0 && Math.abs(oldWidth - this.width) > 1 && this.platforms.length > 0) {
+      const ratio = this.width / oldWidth;
+      this.ball.x = this.wrapX(this.ball.x * ratio);
+      this.targetX = this.wrapX(this.targetX * ratio);
+      this.safePoint.x = this.wrapX(this.safePoint.x * ratio);
+      this.platforms.forEach((platform) => { platform.x = Math.max(8, Math.min(this.width - platform.width - 8, platform.x * ratio)); });
+      this.pickups.forEach((pickup) => { pickup.x = this.wrapX(pickup.x * ratio); });
+    }
   },
 
   bindPointer() {
@@ -250,6 +340,7 @@ const Climb = {
 
     canvas.addEventListener('pointerdown', (event) => {
       if (!this.running) return;
+      AudioFx.unlock();
       this.dragging = true;
       this.pointerId = event.pointerId;
       this.lastPointerX = event.clientX;
@@ -261,10 +352,10 @@ const Climb = {
       if (!this.running || !this.dragging || event.pointerId !== this.pointerId) return;
       const dx = event.clientX - this.lastPointerX;
       this.lastPointerX = event.clientX;
+      if (Math.abs(dx) < 1.2) return;
       const rect = canvas.getBoundingClientRect();
       const scale = this.width / Math.max(1, rect.width);
-      const nextX = this.ball.x + dx * scale;
-      this.ball.x = ((nextX % this.width) + this.width) % this.width;
+      this.targetX = this.wrapX(this.targetX + dx * scale * this.dragSensitivity);
     });
 
     const release = (event: PointerEvent) => {
@@ -278,31 +369,55 @@ const Climb = {
 
   generatePlatforms(targetY: number) {
     let y = this.highestPlatformY;
-    let lastX = this.platforms.at(-1)?.x ?? this.width / 2 - 60;
+    const previous = this.platforms.at(-1);
+    let lastCenter = previous ? previous.x + previous.width / 2 : this.width / 2;
+
     while (y < targetY) {
-      const difficulty = Math.min(1, y / 2200);
-      const gap = 72 + Math.random() * (28 + difficulty * 25);
-      y += gap;
-      const width = Math.max(58, 118 - difficulty * 46 + Math.random() * 24);
-      const maxShift = 105 + difficulty * 35;
-      const rawX = lastX + (Math.random() * 2 - 1) * maxShift;
-      const x = Math.max(10, Math.min(this.width - width - 10, rawX));
-      const fragileChance = y > 280 ? 0.1 + difficulty * 0.22 : 0;
-      const fragile = Math.random() < fragileChance;
-      const movingChance = !fragile && y > 650 ? 0.18 + difficulty * 0.22 : 0;
-      const moving = Math.random() < movingChance;
-      const vx = moving ? (Math.random() < 0.5 ? -1 : 1) * (28 + difficulty * 32) : 0;
-      this.platforms.push({
+      this.routeIndex += 1;
+      const difficulty = this.difficultyAt(y);
+      const anchor = this.routeIndex % 5 === 0;
+      const forceSolid = anchor || this.routeIndex <= 4 || this.lastPlatformKind === 'fragile';
+
+      const safeGap = Math.min(92, 66 + difficulty * 12 + Math.random() * (12 + difficulty * 8));
+      y += safeGap;
+
+      const width = Math.max(82, 126 - difficulty * 30 + Math.random() * 16);
+      const maxShift = 78 + difficulty * 42;
+      const shift = (Math.random() * 2 - 1) * maxShift;
+      let center = this.wrapX(lastCenter + shift);
+      const half = width / 2;
+      center = Math.max(half + 9, Math.min(this.width - half - 9, center));
+      const x = center - half;
+
+      const fragileChance = this.routeIndex > 4 ? 0.09 + difficulty * 0.13 : 0;
+      const movingChance = this.routeIndex > 7 ? 0.08 + difficulty * 0.16 : 0;
+      const fragile = !forceSolid && Math.random() < fragileChance;
+      const moving = !forceSolid && !fragile && Math.random() < movingChance;
+      const kind: PlatformKind = fragile ? 'fragile' : moving ? 'moving' : 'solid';
+      const vx = moving ? (Math.random() < 0.5 ? -1 : 1) * (22 + difficulty * 26) : 0;
+
+      const platform: Platform = {
         x,
         y,
         width,
-        height: 10,
+        height: anchor ? 12 : 10,
         vx,
-        kind: fragile ? 'fragile' : moving ? 'moving' : 'solid',
+        kind,
         breakTimer: 0,
         broken: false,
-      });
-      lastX = x;
+        routeIndex: this.routeIndex,
+        anchor,
+      };
+      this.platforms.push(platform);
+      this.lastPlatformKind = kind;
+      lastCenter = center;
+
+      if (anchor || kind === 'solid') {
+        const roll = Math.random();
+        if (roll < 0.34) this.pickups.push({ x: center, y: y + 34, kind: 'coin', collected: false });
+        else if (this.routeIndex > 6 && roll < 0.405) this.pickups.push({ x: center, y: y + 35, kind: 'spring', collected: false });
+        else if (this.routeIndex > 10 && roll < 0.445) this.pickups.push({ x: center, y: y + 35, kind: 'shield', collected: false });
+      }
     }
     this.highestPlatformY = y;
   },
@@ -318,8 +433,15 @@ const Climb = {
 
   update(dt: number) {
     const ball = this.ball;
+
+    const dx = this.wrappedDelta(ball.x, this.targetX);
+    if (Math.abs(dx) > 0.35) {
+      const maxStep = this.horizontalSpeed * dt;
+      ball.x = this.wrapX(ball.x + Math.max(-maxStep, Math.min(maxStep, dx)));
+    }
+
     ball.prevY = ball.y;
-    ball.vy -= 1550 * dt;
+    ball.vy -= this.gravity * dt;
     ball.y += ball.vy * dt;
 
     for (const platform of this.platforms) {
@@ -344,53 +466,133 @@ const Climb = {
       const nextBottom = ball.y - ball.radius;
       for (const platform of this.platforms) {
         if (platform.broken) continue;
-        const hitRadius = ball.radius * 0.68;
+        const hitRadius = ball.radius * 0.72;
         const horizontalHit = [ball.x, ball.x - this.width, ball.x + this.width].some((centerX) =>
           centerX + hitRadius > platform.x && centerX - hitRadius < platform.x + platform.width
         );
         const crossedTop = previousBottom >= platform.y && nextBottom <= platform.y;
-        if (horizontalHit && crossedTop) {
-          ball.y = platform.y + ball.radius;
-          ball.vy = 620;
-          this.landings += 1;
-          Store.data.climb.totalLandings += 1;
-          if (this.landings % 3 === 0) {
-            Store.data.coins += 1;
-            Store.save();
-          }
-          AudioFx.play('bounce');
-          if (platform.kind === 'fragile' && platform.breakTimer <= 0) {
-            platform.breakTimer = 0.34;
-            AudioFx.play('crack');
-            haptic([7, 18, 5]);
-          } else {
-            haptic(7);
-          }
-          break;
+        if (!horizontalHit || !crossedTop) continue;
+
+        ball.y = platform.y + ball.radius;
+        const boosted = this.springJumps > 0;
+        ball.vy = boosted ? this.boostJump : this.baseJump;
+        if (boosted) this.springJumps -= 1;
+        this.landings += 1;
+        Store.data.climb.totalLandings += 1;
+
+        if (platform.kind !== 'fragile') {
+          this.safePoint = { x: this.wrapX(platform.x + platform.width / 2), y: platform.y };
         }
+
+        AudioFx.play('bounce');
+        if (platform.kind === 'fragile' && platform.breakTimer <= 0) {
+          platform.breakTimer = 0.22;
+          AudioFx.play('crack');
+          haptic([6, 12, 4]);
+        } else {
+          haptic(6);
+        }
+        break;
       }
     }
 
-    const desiredCamera = Math.max(0, ball.y - this.height * 0.58);
-    this.cameraY += (desiredCamera - this.cameraY) * Math.min(1, dt * 7.5);
-    this.runHeight = Math.max(this.runHeight, Math.floor(Math.max(0, ball.y - 58) / 10));
-    this.generatePlatforms(this.cameraY + this.height + 800);
-    this.platforms = this.platforms.filter((platform) => !platform.broken && platform.y > this.cameraY - 160);
+    for (const pickup of this.pickups) {
+      if (pickup.collected) continue;
+      const dxPickup = Math.abs(this.wrappedDelta(ball.x, pickup.x));
+      const dyPickup = Math.abs(ball.y - pickup.y);
+      if (dxPickup > ball.radius + 13 || dyPickup > ball.radius + 13) continue;
+      pickup.collected = true;
+      if (pickup.kind === 'coin') {
+        this.runCoins += 1;
+        Store.data.coins += 3;
+        AudioFx.play('pickup');
+      } else if (pickup.kind === 'spring') {
+        this.springJumps = Math.max(this.springJumps, 3);
+        AudioFx.play('pickup');
+        toast('Yüksek zıplama: 3 sıçrama');
+      } else {
+        this.shieldCharges = 1;
+        AudioFx.play('shield');
+        toast('Kurtarma kalkanı hazır');
+      }
+      Store.save();
+      haptic(8);
+    }
 
-    if (ball.y < this.cameraY - 100) {
-      this.fail();
-      return;
+    const desiredCamera = Math.max(this.cameraY, ball.y - this.height * 0.46);
+    this.cameraY += (desiredCamera - this.cameraY) * Math.min(1, dt * 6.2);
+    this.runHeight = Math.max(this.runHeight, Math.floor(Math.max(0, ball.y - 43) / 10));
+
+    if (this.runHeight >= this.nextMilestone) {
+      AudioFx.play('milestone');
+      toast(`${this.nextMilestone} m!`);
+      this.nextMilestone += 100;
+    }
+
+    this.generatePlatforms(this.cameraY + this.height + 850);
+    this.platforms = this.platforms.filter((platform) => !platform.broken && platform.y > this.cameraY - 190);
+    this.pickups = this.pickups.filter((pickup) => !pickup.collected && pickup.y > this.cameraY - 140);
+
+    if (ball.y < this.cameraY - 115) {
+      if (this.shieldCharges > 0) this.rescue();
+      else {
+        this.fail();
+        return;
+      }
     }
     this.updateHud();
+  },
+
+  rescue() {
+    this.shieldCharges = 0;
+    const rescueY = Math.max(this.safePoint.y, this.cameraY + 72);
+    const width = Math.min(150, this.width * 0.44);
+    const center = this.wrapX(this.safePoint.x);
+    const x = Math.max(8, Math.min(this.width - width - 8, center - width / 2));
+    const platform: Platform = {
+      x,
+      y: rescueY,
+      width,
+      height: 12,
+      vx: 0,
+      kind: 'solid',
+      breakTimer: 0,
+      broken: false,
+      routeIndex: this.routeIndex,
+      anchor: true,
+    };
+    this.platforms.push(platform);
+    this.safePoint = { x: x + width / 2, y: rescueY };
+    this.cameraY = Math.max(0, rescueY - this.height * 0.35);
+    this.ball.x = this.safePoint.x;
+    this.targetX = this.ball.x;
+    this.ball.y = rescueY + this.ball.radius;
+    this.ball.prevY = this.ball.y;
+    this.ball.vy = this.baseJump;
+    AudioFx.play('shield');
+    haptic([20, 25, 20]);
+    toast('Kalkan seni kurtardı');
   },
 
   updateHud() {
     const heightEl = document.getElementById('climbHeight');
     const bestEl = document.getElementById('climbBest');
     const stepEl = document.getElementById('climbSteps');
+    const springEl = document.getElementById('springHud');
+    const shieldEl = document.getElementById('shieldHud');
+    const coinEl = document.getElementById('runCoinHud');
     if (heightEl) heightEl.textContent = `${this.runHeight} m`;
     if (bestEl) bestEl.textContent = `${Math.max(Store.data.climb.bestHeight, this.runHeight)} m`;
     if (stepEl) stepEl.textContent = String(this.landings);
+    if (springEl) {
+      springEl.textContent = this.springJumps > 0 ? `↑ ×${this.springJumps}` : '↑ —';
+      springEl.classList.toggle('active', this.springJumps > 0);
+    }
+    if (shieldEl) {
+      shieldEl.textContent = this.shieldCharges > 0 ? '◆ 1' : '◆ —';
+      shieldEl.classList.toggle('active', this.shieldCharges > 0);
+    }
+    if (coinEl) coinEl.textContent = `● ${this.runCoins}`;
   },
 
   draw() {
@@ -399,17 +601,17 @@ const Climb = {
     ctx.clearRect(0, 0, this.width, this.height);
 
     const sky = ctx.createLinearGradient(0, 0, 0, this.height);
-    sky.addColorStop(0, '#dfe7ff');
-    sky.addColorStop(0.55, '#edf3ff');
-    sky.addColorStop(1, '#f8f9fd');
+    const altitude = Math.min(1, this.cameraY / 4800);
+    sky.addColorStop(0, altitude > 0.55 ? '#cfdcff' : '#dde6ff');
+    sky.addColorStop(0.58, '#edf3ff');
+    sky.addColorStop(1, '#f9faff');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, this.width, this.height);
 
-    const altitude = Math.min(1, this.cameraY / 2400);
-    ctx.globalAlpha = 0.16 + altitude * 0.08;
+    ctx.globalAlpha = 0.15 + altitude * 0.06;
     ctx.fillStyle = '#ffffff';
     for (let i = 0; i < 7; i += 1) {
-      const x = (i * 91 + (this.cameraY * 0.08)) % (this.width + 120) - 60;
+      const x = (i * 91 + this.cameraY * 0.06) % (this.width + 120) - 60;
       const y = 70 + ((i * 137) % Math.max(180, this.height - 150));
       ctx.beginPath();
       ctx.ellipse(x, y, 46, 16, 0, 0, Math.PI * 2);
@@ -421,27 +623,43 @@ const Climb = {
       if (platform.broken) continue;
       const sy = this.height - (platform.y - this.cameraY);
       if (sy < -30 || sy > this.height + 30) continue;
-      const crumble = platform.breakTimer > 0 ? 1 - platform.breakTimer / 0.34 : 0;
-      ctx.globalAlpha = platform.breakTimer > 0 ? Math.max(0.42, 1 - crumble * 0.48) : 1;
-      ctx.fillStyle = platform.kind === 'fragile' ? '#d5a05c' : platform.kind === 'moving' ? '#49a89e' : '#596275';
-      roundRect(ctx, platform.x, sy + crumble * 3, platform.width, Math.max(5, platform.height - crumble * 3), 6);
+      const crumble = platform.breakTimer > 0 ? 1 - platform.breakTimer / 0.22 : 0;
+      ctx.globalAlpha = platform.breakTimer > 0 ? Math.max(0.5, 1 - crumble * 0.45) : 1;
+      ctx.fillStyle = platform.kind === 'fragile' ? '#d99b52' : platform.kind === 'moving' ? '#43afa4' : platform.anchor ? '#4f5870' : '#596275';
+      roundRect(ctx, platform.x, sy + crumble * 2, platform.width, Math.max(6, platform.height - crumble * 2), 6);
       ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.55)';
-      roundRect(ctx, platform.x + 5, sy + 2 + crumble * 3, Math.max(0, platform.width - 10), 2, 1);
+      ctx.fillStyle = 'rgba(255,255,255,.58)';
+      roundRect(ctx, platform.x + 6, sy + 2 + crumble * 2, Math.max(0, platform.width - 12), 2, 1);
       ctx.fill();
 
       if (platform.kind === 'fragile') {
-        ctx.strokeStyle = 'rgba(88,55,25,.55)';
-        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = 'rgba(83,49,21,.7)';
+        ctx.lineWidth = 1.25;
         const mid = platform.x + platform.width * 0.5;
         ctx.beginPath();
-        ctx.moveTo(mid - 10, sy + 1);
-        ctx.lineTo(mid - 3, sy + 5 + crumble * 3);
-        ctx.lineTo(mid + 2, sy + 2);
-        ctx.lineTo(mid + 10 + crumble * 5, sy + 8);
+        ctx.moveTo(mid - 12, sy + 1);
+        ctx.lineTo(mid - 4, sy + 6);
+        ctx.lineTo(mid + 1, sy + 2);
+        ctx.lineTo(mid + 10 + crumble * 4, sy + 8);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
+    }
+
+    for (const pickup of this.pickups) {
+      if (pickup.collected) continue;
+      const sy = this.height - (pickup.y - this.cameraY);
+      if (sy < -30 || sy > this.height + 30) continue;
+      const radius = pickup.kind === 'coin' ? 8 : 11;
+      ctx.fillStyle = pickup.kind === 'coin' ? '#f4bd44' : pickup.kind === 'spring' ? '#7868e6' : '#47b8c4';
+      ctx.beginPath();
+      ctx.arc(pickup.x, sy, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `800 ${pickup.kind === 'coin' ? 10 : 13}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(pickup.kind === 'coin' ? '●' : pickup.kind === 'spring' ? '↑' : '◆', pickup.x, sy + 0.5);
     }
 
     const ballY = this.height - (this.ball.y - this.cameraY);
@@ -470,8 +688,8 @@ const Climb = {
     Store.data.climb.bestHeight = Math.max(Store.data.climb.bestHeight, this.runHeight);
     Store.save();
     AudioFx.play('fail');
-    haptic([20, 40, 20]);
-    showResult('↗', 'Tırmanış bitti', `${this.runHeight} m yükseldin · ${this.landings} basamak`, false);
+    haptic([18, 28, 18]);
+    showResult('↗', 'Tırmanış bitti', `${this.runHeight} m · ${this.landings} basamak · ${this.runCoins} bonus coin`, false);
   },
 
   quit() {
@@ -723,7 +941,7 @@ app.innerHTML = `
 
       <div class="section-head"><h2>Oyunlar</h2><span>Tırmanış ana mod</span></div>
       <div class="mode-grid">
-        <button class="mode-card featured-mode" id="climbMode" type="button"><div class="mode-icon">●</div><div class="mode-title">Tırmanış</div><div class="mode-desc">Otomatik zıpla. Parmağını sağa sola sürükle; hareketli ve kırılgan basamakları kullanarak yüksel.</div></button>
+        <button class="mode-card featured-mode" id="climbMode" type="button"><div class="mode-icon">●</div><div class="mode-title">Tırmanış</div><div class="mode-desc">Sürükleyerek yönlendir. Ulaşılabilir rotada kırılgan basamakları aş, Yay ve Kalkan bonuslarını topla.</div></button>
         <button class="mode-card" id="memoryMode" type="button"><div class="mode-icon">🧠</div><div class="mode-title">Hafıza</div><div class="mode-desc">Mevcut eşleştirme oyunu artık Zipzip içindeki yan oyun olarak devam ediyor.</div></button>
       </div>
       <div class="quick-links">
@@ -743,7 +961,12 @@ app.innerHTML = `
       </div>
       <div class="climb-stage" id="climbStage">
         <canvas id="climbCanvas" aria-label="Zipzip tırmanış oyun alanı"></canvas>
-        <div class="drag-hint" id="dragHint">Parmağını sağa sola sürükle</div>
+        <div class="climb-bonus-hud" aria-label="Koşu bonusları">
+          <span id="springHud">↑ —</span>
+          <span id="shieldHud">◆ —</span>
+          <span id="runCoinHud">● 0</span>
+        </div>
+        <div class="drag-hint" id="dragHint">Sürükle · kenarlardan geçebilirsin</div>
       </div>
     </section>
 
@@ -859,7 +1082,7 @@ function renderAchievements() {
 
 function renderSettings() {
   byId('settingsList').innerHTML = `
-    <div class="settings-row"><div><strong>Ses efektleri</strong><small>Zıplama, çatlama, eşleşme ve sonuç sesleri</small></div><button class="switch ${Store.data.settings.sfx ? 'on' : ''}" data-setting="sfx" type="button" aria-label="Ses efektleri"></button></div>
+    <div class="settings-row"><div><strong>Ses efektleri</strong><small>Daha kısa ve parlak zıplama, bonus, çatlama ve sonuç sesleri</small></div><button class="switch ${Store.data.settings.sfx ? 'on' : ''}" data-setting="sfx" type="button" aria-label="Ses efektleri"></button></div>
     <div class="settings-row"><div><strong>Dokunsal geri bildirim</strong><small>Desteklenen telefonlarda hafif titreşim</small></div><button class="switch ${Store.data.settings.haptics ? 'on' : ''}" data-setting="haptics" type="button" aria-label="Dokunsal geri bildirim"></button></div>
     <div class="settings-row"><div><strong>Yerel ilerleme</strong><small>Bu sürüm eski Zipzip kaydını aynı anahtardan kullanır.</small></div><button class="danger-btn" id="resetProgress" type="button">Sıfırla</button></div>
   `;
