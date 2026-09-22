@@ -1,6 +1,6 @@
 import './styles.css';
 
-type Screen = 'home' | 'game' | 'shop' | 'stats' | 'achievements' | 'settings';
+type Screen = 'home' | 'climb' | 'game' | 'shop' | 'stats' | 'achievements' | 'settings';
 type PowerUp = 'joker' | 'freeze' | 'hint';
 
 type PlayerData = {
@@ -10,6 +10,7 @@ type PlayerData = {
   inventory: Record<PowerUp, number>;
   stats: { totalGames: number; wins: number; totalMatches: number; bestMoves: number | null };
   achievements: string[];
+  climb: { bestHeight: number; runs: number; totalLandings: number };
   settings: { sfx: boolean; haptics: boolean; music?: boolean };
 };
 
@@ -25,6 +26,7 @@ const DEFAULT_DATA: PlayerData = {
   inventory: { joker: 1, freeze: 0, hint: 0 },
   stats: { totalGames: 0, wins: 0, totalMatches: 0, bestMoves: null },
   achievements: [],
+  climb: { bestHeight: 0, runs: 0, totalLandings: 0 },
   settings: { sfx: true, haptics: true, music: true },
 };
 
@@ -50,6 +52,7 @@ function normalizeData(raw: unknown): PlayerData {
     ...source,
     inventory: { ...DEFAULT_DATA.inventory, ...(source.inventory ?? {}) },
     stats: { ...DEFAULT_DATA.stats, ...(source.stats ?? {}) },
+    climb: { ...DEFAULT_DATA.climb, ...(source.climb ?? {}) },
     settings: { ...DEFAULT_DATA.settings, ...(source.settings ?? {}) },
     achievements: Array.isArray(source.achievements) ? source.achievements : [],
   };
@@ -101,14 +104,14 @@ function shuffle<T>(values: T[]): T[] {
 
 const AudioFx = {
   ctx: null as AudioContext | null,
-  play(type: 'flip' | 'match' | 'win') {
+  play(type: 'flip' | 'match' | 'win' | 'bounce' | 'fail') {
     if (!Store.data.settings.sfx) return;
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     this.ctx ??= new AudioContextClass();
     if (this.ctx.state === 'suspended') void this.ctx.resume();
     const now = this.ctx.currentTime;
-    const tones = type === 'win' ? [523, 659, 784] : [type === 'match' ? 740 : 410];
+    const tones = type === 'win' ? [523, 659, 784] : type === 'bounce' ? [330] : type === 'fail' ? [180] : [type === 'match' ? 740 : 410];
     tones.forEach((frequency, index) => {
       const osc = this.ctx!.createOscillator();
       const gain = this.ctx!.createGain();
@@ -126,6 +129,274 @@ const AudioFx = {
 function haptic(pattern: number | number[]) {
   if (Store.data.settings.haptics && navigator.vibrate) navigator.vibrate(pattern);
 }
+
+
+type Platform = { x: number; y: number; width: number; height: number; vx: number };
+
+const Climb = {
+  canvas: null as HTMLCanvasElement | null,
+  ctx: null as CanvasRenderingContext2D | null,
+  running: false,
+  rafId: 0,
+  lastTime: 0,
+  width: 360,
+  height: 640,
+  dpr: 1,
+  cameraY: 0,
+  ball: { x: 180, y: 58, prevY: 58, vy: 0, radius: 13 },
+  platforms: [] as Platform[],
+  highestPlatformY: 0,
+  landings: 0,
+  runHeight: 0,
+  dragging: false,
+  pointerId: -1,
+  lastPointerX: 0,
+
+  start() {
+    activeMode = 'climb';
+    Store.data.climb.runs += 1;
+    Store.save();
+    navigate('climb');
+    this.canvas = byId<HTMLCanvasElement>('climbCanvas');
+    this.ctx = this.canvas.getContext('2d');
+    if (!this.ctx) throw new Error('Canvas context oluşturulamadı.');
+    this.bindPointer();
+    this.reset();
+    this.resize();
+    this.running = true;
+    this.lastTime = performance.now();
+    this.rafId = requestAnimationFrame((time) => this.loop(time));
+  },
+
+  reset() {
+    cancelAnimationFrame(this.rafId);
+    this.running = false;
+    this.cameraY = 0;
+    this.landings = 0;
+    this.runHeight = 0;
+    const startWidth = Math.min(150, this.width * 0.42);
+    const startX = (this.width - startWidth) / 2;
+    this.ball = { x: this.width / 2, y: 58, prevY: 58, vy: 620, radius: 13 };
+    this.platforms = [{ x: startX, y: 30, width: startWidth, height: 12, vx: 0 }];
+    this.highestPlatformY = 30;
+    this.generatePlatforms(1600);
+    this.updateHud();
+  },
+
+  resize() {
+    if (!this.canvas || !this.ctx) return;
+    const rect = this.canvas.getBoundingClientRect();
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.width = Math.max(280, rect.width);
+    this.height = Math.max(460, rect.height);
+    this.canvas.width = Math.floor(this.width * this.dpr);
+    this.canvas.height = Math.floor(this.height * this.dpr);
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.ball.x = Math.min(this.width - this.ball.radius, Math.max(this.ball.radius, this.ball.x || this.width / 2));
+    if (this.platforms.length === 0) this.reset();
+  },
+
+  bindPointer() {
+    const canvas = this.canvas;
+    if (!canvas || canvas.dataset.dragBound === '1') return;
+    canvas.dataset.dragBound = '1';
+
+    canvas.addEventListener('pointerdown', (event) => {
+      if (!this.running) return;
+      this.dragging = true;
+      this.pointerId = event.pointerId;
+      this.lastPointerX = event.clientX;
+      canvas.setPointerCapture(event.pointerId);
+      byId('dragHint').classList.add('hidden');
+    });
+
+    canvas.addEventListener('pointermove', (event) => {
+      if (!this.running || !this.dragging || event.pointerId !== this.pointerId) return;
+      const dx = event.clientX - this.lastPointerX;
+      this.lastPointerX = event.clientX;
+      const rect = canvas.getBoundingClientRect();
+      const scale = this.width / Math.max(1, rect.width);
+      this.ball.x = Math.max(this.ball.radius, Math.min(this.width - this.ball.radius, this.ball.x + dx * scale));
+    });
+
+    const release = (event: PointerEvent) => {
+      if (event.pointerId !== this.pointerId) return;
+      this.dragging = false;
+      this.pointerId = -1;
+    };
+    canvas.addEventListener('pointerup', release);
+    canvas.addEventListener('pointercancel', release);
+  },
+
+  generatePlatforms(targetY: number) {
+    let y = this.highestPlatformY;
+    let lastX = this.platforms.at(-1)?.x ?? this.width / 2 - 60;
+    while (y < targetY) {
+      const difficulty = Math.min(1, y / 2200);
+      const gap = 72 + Math.random() * (28 + difficulty * 25);
+      y += gap;
+      const width = Math.max(58, 118 - difficulty * 46 + Math.random() * 24);
+      const maxShift = 105 + difficulty * 35;
+      const rawX = lastX + (Math.random() * 2 - 1) * maxShift;
+      const x = Math.max(10, Math.min(this.width - width - 10, rawX));
+      const movingChance = y > 650 ? 0.18 + difficulty * 0.22 : 0;
+      const vx = Math.random() < movingChance ? (Math.random() < 0.5 ? -1 : 1) * (28 + difficulty * 32) : 0;
+      this.platforms.push({ x, y, width, height: 10, vx });
+      lastX = x;
+    }
+    this.highestPlatformY = y;
+  },
+
+  loop(time: number) {
+    if (!this.running) return;
+    const dt = Math.min(0.028, Math.max(0.001, (time - this.lastTime) / 1000));
+    this.lastTime = time;
+    this.update(dt);
+    this.draw();
+    this.rafId = requestAnimationFrame((next) => this.loop(next));
+  },
+
+  update(dt: number) {
+    const ball = this.ball;
+    ball.prevY = ball.y;
+    ball.vy -= 1550 * dt;
+    ball.y += ball.vy * dt;
+
+    for (const platform of this.platforms) {
+      if (platform.vx !== 0) {
+        platform.x += platform.vx * dt;
+        if (platform.x <= 8 || platform.x + platform.width >= this.width - 8) {
+          platform.x = Math.max(8, Math.min(this.width - platform.width - 8, platform.x));
+          platform.vx *= -1;
+        }
+      }
+    }
+
+    if (ball.vy < 0) {
+      const previousBottom = ball.prevY - ball.radius;
+      const nextBottom = ball.y - ball.radius;
+      for (const platform of this.platforms) {
+        const horizontalHit = ball.x + ball.radius * 0.68 > platform.x && ball.x - ball.radius * 0.68 < platform.x + platform.width;
+        const crossedTop = previousBottom >= platform.y && nextBottom <= platform.y;
+        if (horizontalHit && crossedTop) {
+          ball.y = platform.y + ball.radius;
+          ball.vy = 620;
+          this.landings += 1;
+          Store.data.climb.totalLandings += 1;
+          if (this.landings % 3 === 0) {
+            Store.data.coins += 1;
+            Store.save();
+          }
+          AudioFx.play('bounce');
+          haptic(7);
+          break;
+        }
+      }
+    }
+
+    const desiredCamera = Math.max(0, ball.y - this.height * 0.58);
+    this.cameraY += (desiredCamera - this.cameraY) * Math.min(1, dt * 7.5);
+    this.runHeight = Math.max(this.runHeight, Math.floor(Math.max(0, ball.y - 58) / 10));
+    this.generatePlatforms(this.cameraY + this.height + 800);
+    this.platforms = this.platforms.filter((platform) => platform.y > this.cameraY - 160);
+
+    if (ball.y < this.cameraY - 100) {
+      this.fail();
+      return;
+    }
+    this.updateHud();
+  },
+
+  updateHud() {
+    const heightEl = document.getElementById('climbHeight');
+    const bestEl = document.getElementById('climbBest');
+    const stepEl = document.getElementById('climbSteps');
+    if (heightEl) heightEl.textContent = `${this.runHeight} m`;
+    if (bestEl) bestEl.textContent = `${Math.max(Store.data.climb.bestHeight, this.runHeight)} m`;
+    if (stepEl) stepEl.textContent = String(this.landings);
+  },
+
+  draw() {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    ctx.clearRect(0, 0, this.width, this.height);
+
+    const sky = ctx.createLinearGradient(0, 0, 0, this.height);
+    sky.addColorStop(0, '#dfe7ff');
+    sky.addColorStop(0.55, '#edf3ff');
+    sky.addColorStop(1, '#f8f9fd');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    const altitude = Math.min(1, this.cameraY / 2400);
+    ctx.globalAlpha = 0.16 + altitude * 0.08;
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 7; i += 1) {
+      const x = (i * 91 + (this.cameraY * 0.08)) % (this.width + 120) - 60;
+      const y = 70 + ((i * 137) % Math.max(180, this.height - 150));
+      ctx.beginPath();
+      ctx.ellipse(x, y, 46, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    for (const platform of this.platforms) {
+      const sy = this.height - (platform.y - this.cameraY);
+      if (sy < -30 || sy > this.height + 30) continue;
+      ctx.fillStyle = platform.vx === 0 ? '#596275' : '#49a89e';
+      roundRect(ctx, platform.x, sy, platform.width, platform.height, 6);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.55)';
+      roundRect(ctx, platform.x + 5, sy + 2, Math.max(0, platform.width - 10), 2, 1);
+      ctx.fill();
+    }
+
+    const ballY = this.height - (this.ball.y - this.cameraY);
+    const glow = ctx.createRadialGradient(this.ball.x - 5, ballY - 6, 2, this.ball.x, ballY, this.ball.radius * 1.5);
+    glow.addColorStop(0, '#ffffff');
+    glow.addColorStop(0.22, '#ffd166');
+    glow.addColorStop(1, '#f4a62a');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(this.ball.x, ballY, this.ball.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(105,76,12,.25)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  },
+
+  fail() {
+    if (!this.running) return;
+    this.running = false;
+    cancelAnimationFrame(this.rafId);
+    Store.data.climb.bestHeight = Math.max(Store.data.climb.bestHeight, this.runHeight);
+    Store.save();
+    AudioFx.play('fail');
+    haptic([20, 40, 20]);
+    showResult('↗', 'Tırmanış bitti', `${this.runHeight} m yükseldin · ${this.landings} basamak`, false);
+  },
+
+  quit() {
+    this.running = false;
+    cancelAnimationFrame(this.rafId);
+    this.dragging = false;
+    closeResult();
+    navigate('home');
+  },
+};
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
+let activeMode: 'climb' | 'memory' = 'climb';
 
 const Game = {
   level: 1,
@@ -333,16 +604,16 @@ app.innerHTML = `
 
     <section class="screen active" data-screen="home">
       <div class="hero">
-        <p class="eyebrow">Zipzip 2.0</p>
-        <h1>Kısa oyna.<br>Hafızanı zorla.</h1>
-        <p>Telefon için yeniden düzenlenmiş hızlı eşleştirme oyunu. İlerlemen bu cihazda otomatik saklanır ve eski Zipzip kaydın varsa aynen devam eder.</p>
+        <p class="eyebrow">Zipzip</p>
+        <h1>Zıpla.<br>Yukarı çık.</h1>
+        <p>Top kendi kendine zıplar. Oyun alanında parmağını sağa sola sürükleyerek topu basamaklara indir ve olabildiğince yüksel.</p>
         <div class="resume-card">
           <div>
-            <div class="resume-kicker">Kaldığın yer</div>
-            <div class="resume-title">Seviye <span id="resumeLevel">1</span></div>
-            <div class="resume-meta" id="resumeMeta">4×4 tahta · serbest süre</div>
+            <div class="resume-kicker">Ana oyun</div>
+            <div class="resume-title">Tırmanış</div>
+            <div class="resume-meta">En iyi: <span id="climbHomeBest">0 m</span> · Tuş yok, sürükle ve yönlendir</div>
           </div>
-          <button class="primary-btn" id="resumeButton" type="button">Devam et</button>
+          <button class="primary-btn" id="resumeButton" type="button">Tırman</button>
         </div>
       </div>
 
@@ -352,14 +623,29 @@ app.innerHTML = `
         <article class="dashboard-card"><div class="dashboard-label">En iyi</div><div class="dashboard-value" id="homeBest">—</div><div class="dashboard-note">en az hamle</div></article>
       </div>
 
-      <div class="section-head"><h2>Oyun</h2><span>Yeni modlar için temel hazır</span></div>
+      <div class="section-head"><h2>Oyunlar</h2><span>Tırmanış ana mod</span></div>
       <div class="mode-grid">
-        <button class="mode-card" id="classicMode" type="button"><div class="mode-icon">🧠</div><div class="mode-title">Klasik</div><div class="mode-desc">Seviyeleri sırayla ilerlet. İlerledikçe tahta büyür ve süre devreye girer.</div></button>
-        <button class="mode-card" data-nav="shop" type="button"><div class="mode-icon">✨</div><div class="mode-title">Güçlendirmeler</div><div class="mode-desc">Kazandığın altınlarla joker, ipucu ve zaman dondurma biriktir.</div></button>
+        <button class="mode-card featured-mode" id="climbMode" type="button"><div class="mode-icon">●</div><div class="mode-title">Tırmanış</div><div class="mode-desc">Otomatik zıpla. Parmağını sağa sola sürükle, basamaklara in ve kamerayla birlikte yüksel.</div></button>
+        <button class="mode-card" id="memoryMode" type="button"><div class="mode-icon">🧠</div><div class="mode-title">Hafıza</div><div class="mode-desc">Mevcut eşleştirme oyunu artık Zipzip içindeki yan oyun olarak devam ediyor.</div></button>
       </div>
       <div class="quick-links">
         <button class="quick-link" data-nav="stats" type="button"><span>📊</span><b>İstatistikler</b><small>Performansını gör</small></button>
         <button class="quick-link" data-nav="achievements" type="button"><span>🏆</span><b>Başarımlar</b><small>Açtığın rozetler</small></button>
+      </div>
+    </section>
+
+    <section class="screen climb-screen" data-screen="climb">
+      <div class="climb-top">
+        <button class="icon-btn" id="quitClimb" type="button" aria-label="Tırmanıştan çık">←</button>
+        <div class="climb-stats">
+          <div class="game-stat"><span>Yükseklik</span><strong id="climbHeight">0 m</strong></div>
+          <div class="game-stat"><span>Rekor</span><strong id="climbBest">0 m</strong></div>
+          <div class="game-stat"><span>Basamak</span><strong id="climbSteps">0</strong></div>
+        </div>
+      </div>
+      <div class="climb-stage" id="climbStage">
+        <canvas id="climbCanvas" aria-label="Zipzip tırmanış oyun alanı"></canvas>
+        <div class="drag-hint" id="dragHint">Parmağını sağa sola sürükle</div>
       </div>
     </section>
 
@@ -401,7 +687,7 @@ function byId<T extends HTMLElement = HTMLElement>(id: string): T {
 
 function navigate(screen: Screen) {
   document.querySelectorAll<HTMLElement>('[data-screen]').forEach((element) => element.classList.toggle('active', element.dataset.screen === screen));
-  byId('mainTopbar').style.display = screen === 'game' ? 'none' : '';
+  byId('mainTopbar').style.display = screen === 'game' || screen === 'climb' ? 'none' : '';
   closeResult();
   if (screen === 'home') renderHome();
   if (screen === 'shop') renderShop();
@@ -421,9 +707,7 @@ function renderGlobalStats() {
 
 function renderHome() {
   const data = Store.data;
-  const config = levelConfig(data.currentLevel);
-  byId('resumeLevel').textContent = String(data.currentLevel);
-  byId('resumeMeta').textContent = `${config.cols}×${config.rows} tahta · ${config.time ? `${Math.floor(config.time / 60)} dk` : 'serbest süre'}`;
+  byId('climbHomeBest').textContent = `${data.climb.bestHeight} m`;
   byId('homeWins').textContent = String(data.stats.wins);
   byId('homeMatches').textContent = String(data.stats.totalMatches);
   byId('homeBest').textContent = data.stats.bestMoves === null ? '—' : String(data.stats.bestMoves);
@@ -455,7 +739,10 @@ function renderShop() {
 function renderStats() {
   const stats = Store.data.stats;
   const entries = [
-    ['🎮','Başlatılan oyun', stats.totalGames],
+    ['↗','Tırmanış rekoru', `${Store.data.climb.bestHeight} m`],
+    ['●','Tırmanış koşusu', Store.data.climb.runs],
+    ['▰','Toplam basamak', Store.data.climb.totalLandings],
+    ['🎮','Başlatılan hafıza oyunu', stats.totalGames],
     ['🏁','Tamamlanan oyun', stats.wins],
     ['🧩','Toplam eşleşme', stats.totalMatches],
     ['📈','Ulaşılan seviye', Store.data.maxLevelReached],
@@ -546,13 +833,15 @@ app.addEventListener('click', (event) => {
   }
 });
 
-byId('resumeButton').addEventListener('click', () => Game.start());
-byId('classicMode').addEventListener('click', () => Game.start());
+byId('resumeButton').addEventListener('click', () => Climb.start());
+byId('climbMode').addEventListener('click', () => Climb.start());
+byId('memoryMode').addEventListener('click', () => { activeMode = 'memory'; Game.start(); });
+byId('quitClimb').addEventListener('click', () => Climb.quit());
 byId('quitGame').addEventListener('click', () => Game.quit());
-byId('resultHome').addEventListener('click', () => Game.quit());
-byId('resultRetry').addEventListener('click', () => { closeResult(); Game.setup(); });
-byId('resultNext').addEventListener('click', () => { closeResult(); Game.level += 1; Game.setup(); });
-window.addEventListener('resize', () => { if (document.querySelector('[data-screen="game"]')?.classList.contains('active')) Game.fitBoard(); });
+byId('resultHome').addEventListener('click', () => activeMode === 'climb' ? Climb.quit() : Game.quit());
+byId('resultRetry').addEventListener('click', () => { closeResult(); if (activeMode === 'climb') Climb.start(); else Game.setup(); });
+byId('resultNext').addEventListener('click', () => { closeResult(); if (activeMode === 'memory') { Game.level += 1; Game.setup(); } });
+window.addEventListener('resize', () => { if (document.querySelector('[data-screen="game"]')?.classList.contains('active')) Game.fitBoard(); if (document.querySelector('[data-screen="climb"]')?.classList.contains('active')) Climb.resize(); });
 
 Store.load();
 unlockAchievements(false);

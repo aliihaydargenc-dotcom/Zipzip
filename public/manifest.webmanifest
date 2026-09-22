@@ -1,7 +1,7 @@
 {
   "name": "Zipzip",
   "short_name": "Zipzip",
-  "description": "Mobil hafıza eşleştirme oyunu",
+  "description": "Parmağınla yönlendirdiğin dikey tırmanış oyunu",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
