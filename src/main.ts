@@ -192,7 +192,8 @@ const Climb = {
     this.canvas.width = Math.floor(this.width * this.dpr);
     this.canvas.height = Math.floor(this.height * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    this.ball.x = Math.min(this.width - this.ball.radius, Math.max(this.ball.radius, this.ball.x || this.width / 2));
+    const currentX = this.ball.x || this.width / 2;
+    this.ball.x = ((currentX % this.width) + this.width) % this.width;
     if (this.platforms.length === 0) this.reset();
   },
 
@@ -216,7 +217,8 @@ const Climb = {
       this.lastPointerX = event.clientX;
       const rect = canvas.getBoundingClientRect();
       const scale = this.width / Math.max(1, rect.width);
-      this.ball.x = Math.max(this.ball.radius, Math.min(this.width - this.ball.radius, this.ball.x + dx * scale));
+      const nextX = this.ball.x + dx * scale;
+      this.ball.x = ((nextX % this.width) + this.width) % this.width;
     });
 
     const release = (event: PointerEvent) => {
@@ -276,7 +278,10 @@ const Climb = {
       const previousBottom = ball.prevY - ball.radius;
       const nextBottom = ball.y - ball.radius;
       for (const platform of this.platforms) {
-        const horizontalHit = ball.x + ball.radius * 0.68 > platform.x && ball.x - ball.radius * 0.68 < platform.x + platform.width;
+        const hitRadius = ball.radius * 0.68;
+        const horizontalHit = [ball.x, ball.x - this.width, ball.x + this.width].some((centerX) =>
+          centerX + hitRadius > platform.x && centerX - hitRadius < platform.x + platform.width
+        );
         const crossedTop = previousBottom >= platform.y && nextBottom <= platform.y;
         if (horizontalHit && crossedTop) {
           ball.y = platform.y + ball.radius;
@@ -352,17 +357,22 @@ const Climb = {
     }
 
     const ballY = this.height - (this.ball.y - this.cameraY);
-    const glow = ctx.createRadialGradient(this.ball.x - 5, ballY - 6, 2, this.ball.x, ballY, this.ball.radius * 1.5);
-    glow.addColorStop(0, '#ffffff');
-    glow.addColorStop(0.22, '#ffd166');
-    glow.addColorStop(1, '#f4a62a');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(this.ball.x, ballY, this.ball.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(105,76,12,.25)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    const drawBall = (x: number) => {
+      const glow = ctx.createRadialGradient(x - 5, ballY - 6, 2, x, ballY, this.ball.radius * 1.5);
+      glow.addColorStop(0, '#ffffff');
+      glow.addColorStop(0.22, '#ffd166');
+      glow.addColorStop(1, '#f4a62a');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(x, ballY, this.ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(105,76,12,.25)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    };
+    drawBall(this.ball.x);
+    if (this.ball.x < this.ball.radius) drawBall(this.ball.x + this.width);
+    if (this.ball.x > this.width - this.ball.radius) drawBall(this.ball.x - this.width);
   },
 
   fail() {
