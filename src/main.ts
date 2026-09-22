@@ -104,24 +104,69 @@ function shuffle<T>(values: T[]): T[] {
 
 const AudioFx = {
   ctx: null as AudioContext | null,
-  play(type: 'flip' | 'match' | 'win' | 'bounce' | 'fail') {
-    if (!Store.data.settings.sfx) return;
+
+  ensureContext() {
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
+    if (!AudioContextClass) return null;
     this.ctx ??= new AudioContextClass();
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
-    const now = this.ctx.currentTime;
-    const tones = type === 'win' ? [523, 659, 784] : type === 'bounce' ? [330] : type === 'fail' ? [180] : [type === 'match' ? 740 : 410];
+    return this.ctx;
+  },
+
+  unlock() {
+    const ctx = this.ensureContext();
+    if (ctx?.state === 'suspended') void ctx.resume();
+  },
+
+  noise(type: 'crack' | 'break') {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const duration = type === 'crack' ? 0.075 : 0.14;
+    const length = Math.floor(ctx.sampleRate * duration);
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const channel = buffer.getChannelData(0);
+    for (let i = 0; i < length; i += 1) {
+      const life = 1 - i / length;
+      channel[i] = (Math.random() * 2 - 1) * Math.pow(life, type === 'crack' ? 2.6 : 1.55);
+    }
+    const source = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    source.buffer = buffer;
+    filter.type = 'bandpass';
+    filter.frequency.value = type === 'crack' ? 1650 : 920;
+    filter.Q.value = type === 'crack' ? 0.9 : 0.55;
+    gain.gain.value = type === 'crack' ? 0.045 : 0.065;
+    source.connect(filter).connect(gain).connect(ctx.destination);
+    source.start();
+  },
+
+  play(type: 'flip' | 'match' | 'win' | 'bounce' | 'fail' | 'crack' | 'break') {
+    if (!Store.data.settings.sfx) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') void ctx.resume();
+    if (type === 'crack' || type === 'break') {
+      this.noise(type);
+      return;
+    }
+
+    const now = ctx.currentTime;
+    const tones = type === 'win' ? [523, 659, 784] : type === 'match' ? [740] : type === 'bounce' ? [310] : type === 'fail' ? [185] : [410];
     tones.forEach((frequency, index) => {
-      const osc = this.ctx!.createOscillator();
-      const gain = this.ctx!.createGain();
-      osc.type = type === 'flip' ? 'sine' : 'triangle';
-      osc.frequency.value = frequency;
-      gain.gain.setValueAtTime(type === 'flip' ? 0.035 : 0.06, now + index * 0.11);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.11 + 0.16);
-      osc.connect(gain).connect(this.ctx!.destination);
-      osc.start(now + index * 0.11);
-      osc.stop(now + index * 0.11 + 0.18);
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = now + index * 0.11;
+      osc.type = type === 'flip' || type === 'bounce' ? 'sine' : type === 'fail' ? 'sawtooth' : 'triangle';
+      osc.frequency.setValueAtTime(frequency, start);
+      if (type === 'bounce') osc.frequency.exponentialRampToValueAtTime(455, start + 0.085);
+      if (type === 'fail') osc.frequency.exponentialRampToValueAtTime(92, start + 0.22);
+      const volume = type === 'flip' ? 0.022 : type === 'bounce' ? 0.03 : type === 'fail' ? 0.045 : 0.055;
+      const duration = type === 'fail' ? 0.24 : type === 'bounce' ? 0.105 : 0.16;
+      gain.gain.setValueAtTime(volume, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.02);
     });
   },
 };
@@ -131,7 +176,7 @@ function haptic(pattern: number | number[]) {
 }
 
 
-type Platform = { x: number; y: number; width: number; height: number; vx: number };
+type Platform = { x: number; y: number; width: number; height: number; vx: number; kind: 'solid' | 'moving' | 'fragile'; breakTimer: number; broken: boolean };
 
 const Climb = {
   canvas: null as HTMLCanvasElement | null,
@@ -154,6 +199,7 @@ const Climb = {
 
   start() {
     activeMode = 'climb';
+    AudioFx.unlock();
     Store.data.climb.runs += 1;
     Store.save();
     navigate('climb');
@@ -177,7 +223,7 @@ const Climb = {
     const startWidth = Math.min(150, this.width * 0.42);
     const startX = (this.width - startWidth) / 2;
     this.ball = { x: this.width / 2, y: 58, prevY: 58, vy: 620, radius: 13 };
-    this.platforms = [{ x: startX, y: 30, width: startWidth, height: 12, vx: 0 }];
+    this.platforms = [{ x: startX, y: 30, width: startWidth, height: 12, vx: 0, kind: 'solid', breakTimer: 0, broken: false }];
     this.highestPlatformY = 30;
     this.generatePlatforms(1600);
     this.updateHud();
@@ -241,9 +287,21 @@ const Climb = {
       const maxShift = 105 + difficulty * 35;
       const rawX = lastX + (Math.random() * 2 - 1) * maxShift;
       const x = Math.max(10, Math.min(this.width - width - 10, rawX));
-      const movingChance = y > 650 ? 0.18 + difficulty * 0.22 : 0;
-      const vx = Math.random() < movingChance ? (Math.random() < 0.5 ? -1 : 1) * (28 + difficulty * 32) : 0;
-      this.platforms.push({ x, y, width, height: 10, vx });
+      const fragileChance = y > 280 ? 0.1 + difficulty * 0.22 : 0;
+      const fragile = Math.random() < fragileChance;
+      const movingChance = !fragile && y > 650 ? 0.18 + difficulty * 0.22 : 0;
+      const moving = Math.random() < movingChance;
+      const vx = moving ? (Math.random() < 0.5 ? -1 : 1) * (28 + difficulty * 32) : 0;
+      this.platforms.push({
+        x,
+        y,
+        width,
+        height: 10,
+        vx,
+        kind: fragile ? 'fragile' : moving ? 'moving' : 'solid',
+        breakTimer: 0,
+        broken: false,
+      });
       lastX = x;
     }
     this.highestPlatformY = y;
@@ -265,11 +323,18 @@ const Climb = {
     ball.y += ball.vy * dt;
 
     for (const platform of this.platforms) {
-      if (platform.vx !== 0) {
+      if (platform.vx !== 0 && !platform.broken) {
         platform.x += platform.vx * dt;
         if (platform.x <= 8 || platform.x + platform.width >= this.width - 8) {
           platform.x = Math.max(8, Math.min(this.width - platform.width - 8, platform.x));
           platform.vx *= -1;
+        }
+      }
+      if (platform.breakTimer > 0) {
+        platform.breakTimer -= dt;
+        if (platform.breakTimer <= 0) {
+          platform.broken = true;
+          AudioFx.play('break');
         }
       }
     }
@@ -278,6 +343,7 @@ const Climb = {
       const previousBottom = ball.prevY - ball.radius;
       const nextBottom = ball.y - ball.radius;
       for (const platform of this.platforms) {
+        if (platform.broken) continue;
         const hitRadius = ball.radius * 0.68;
         const horizontalHit = [ball.x, ball.x - this.width, ball.x + this.width].some((centerX) =>
           centerX + hitRadius > platform.x && centerX - hitRadius < platform.x + platform.width
@@ -293,7 +359,13 @@ const Climb = {
             Store.save();
           }
           AudioFx.play('bounce');
-          haptic(7);
+          if (platform.kind === 'fragile' && platform.breakTimer <= 0) {
+            platform.breakTimer = 0.34;
+            AudioFx.play('crack');
+            haptic([7, 18, 5]);
+          } else {
+            haptic(7);
+          }
           break;
         }
       }
@@ -303,7 +375,7 @@ const Climb = {
     this.cameraY += (desiredCamera - this.cameraY) * Math.min(1, dt * 7.5);
     this.runHeight = Math.max(this.runHeight, Math.floor(Math.max(0, ball.y - 58) / 10));
     this.generatePlatforms(this.cameraY + this.height + 800);
-    this.platforms = this.platforms.filter((platform) => platform.y > this.cameraY - 160);
+    this.platforms = this.platforms.filter((platform) => !platform.broken && platform.y > this.cameraY - 160);
 
     if (ball.y < this.cameraY - 100) {
       this.fail();
@@ -346,14 +418,30 @@ const Climb = {
     ctx.globalAlpha = 1;
 
     for (const platform of this.platforms) {
+      if (platform.broken) continue;
       const sy = this.height - (platform.y - this.cameraY);
       if (sy < -30 || sy > this.height + 30) continue;
-      ctx.fillStyle = platform.vx === 0 ? '#596275' : '#49a89e';
-      roundRect(ctx, platform.x, sy, platform.width, platform.height, 6);
+      const crumble = platform.breakTimer > 0 ? 1 - platform.breakTimer / 0.34 : 0;
+      ctx.globalAlpha = platform.breakTimer > 0 ? Math.max(0.42, 1 - crumble * 0.48) : 1;
+      ctx.fillStyle = platform.kind === 'fragile' ? '#d5a05c' : platform.kind === 'moving' ? '#49a89e' : '#596275';
+      roundRect(ctx, platform.x, sy + crumble * 3, platform.width, Math.max(5, platform.height - crumble * 3), 6);
       ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,.55)';
-      roundRect(ctx, platform.x + 5, sy + 2, Math.max(0, platform.width - 10), 2, 1);
+      roundRect(ctx, platform.x + 5, sy + 2 + crumble * 3, Math.max(0, platform.width - 10), 2, 1);
       ctx.fill();
+
+      if (platform.kind === 'fragile') {
+        ctx.strokeStyle = 'rgba(88,55,25,.55)';
+        ctx.lineWidth = 1.2;
+        const mid = platform.x + platform.width * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(mid - 10, sy + 1);
+        ctx.lineTo(mid - 3, sy + 5 + crumble * 3);
+        ctx.lineTo(mid + 2, sy + 2);
+        ctx.lineTo(mid + 10 + crumble * 5, sy + 8);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
     }
 
     const ballY = this.height - (this.ball.y - this.cameraY);
@@ -635,7 +723,7 @@ app.innerHTML = `
 
       <div class="section-head"><h2>Oyunlar</h2><span>Tırmanış ana mod</span></div>
       <div class="mode-grid">
-        <button class="mode-card featured-mode" id="climbMode" type="button"><div class="mode-icon">●</div><div class="mode-title">Tırmanış</div><div class="mode-desc">Otomatik zıpla. Parmağını sağa sola sürükle, basamaklara in ve kamerayla birlikte yüksel.</div></button>
+        <button class="mode-card featured-mode" id="climbMode" type="button"><div class="mode-icon">●</div><div class="mode-title">Tırmanış</div><div class="mode-desc">Otomatik zıpla. Parmağını sağa sola sürükle; hareketli ve kırılgan basamakları kullanarak yüksel.</div></button>
         <button class="mode-card" id="memoryMode" type="button"><div class="mode-icon">🧠</div><div class="mode-title">Hafıza</div><div class="mode-desc">Mevcut eşleştirme oyunu artık Zipzip içindeki yan oyun olarak devam ediyor.</div></button>
       </div>
       <div class="quick-links">
@@ -771,7 +859,7 @@ function renderAchievements() {
 
 function renderSettings() {
   byId('settingsList').innerHTML = `
-    <div class="settings-row"><div><strong>Ses efektleri</strong><small>Kart, eşleşme ve seviye sesleri</small></div><button class="switch ${Store.data.settings.sfx ? 'on' : ''}" data-setting="sfx" type="button" aria-label="Ses efektleri"></button></div>
+    <div class="settings-row"><div><strong>Ses efektleri</strong><small>Zıplama, çatlama, eşleşme ve sonuç sesleri</small></div><button class="switch ${Store.data.settings.sfx ? 'on' : ''}" data-setting="sfx" type="button" aria-label="Ses efektleri"></button></div>
     <div class="settings-row"><div><strong>Dokunsal geri bildirim</strong><small>Desteklenen telefonlarda hafif titreşim</small></div><button class="switch ${Store.data.settings.haptics ? 'on' : ''}" data-setting="haptics" type="button" aria-label="Dokunsal geri bildirim"></button></div>
     <div class="settings-row"><div><strong>Yerel ilerleme</strong><small>Bu sürüm eski Zipzip kaydını aynı anahtardan kullanır.</small></div><button class="danger-btn" id="resetProgress" type="button">Sıfırla</button></div>
   `;
